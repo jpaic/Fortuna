@@ -1,18 +1,36 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import type { Asset } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { AssetForm } from "../components/forms/AssetForm";
 import type { AssetInput } from "../lib/schemas";
+import { useCurrency } from "../context/CurrencyContext";
 
 export function Assets() {
-  const { list, create, remove } = useResource<Asset>("assets");
+  const { list, create, update, remove } = useResource<Asset>("assets");
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Asset | null>(null);
+  const { format, displayCurrency } = useCurrency();
 
-  async function handleCreate(data: AssetInput) {
-    await create.mutateAsync(data);
+  async function handleSubmit(data: AssetInput) {
+    if (editing) {
+      await update.mutateAsync({ id: editing.id, payload: data });
+    } else {
+      await create.mutateAsync(data);
+    }
     setShowForm(false);
+    setEditing(null);
+  }
+
+  function openEdit(asset: Asset) {
+    setEditing(asset);
+    setShowForm(true);
+  }
+
+  function closeModal() {
+    setShowForm(false);
+    setEditing(null);
   }
 
   return (
@@ -23,7 +41,7 @@ export function Assets() {
           <p className="text-sm text-slate-400">Everything you own.</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { setEditing(null); setShowForm(true); }}
           className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400"
         >
           <Plus size={16} /> Add asset
@@ -36,9 +54,8 @@ export function Assets() {
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Purchase value</th>
+              <th className="px-4 py-3 font-medium">Balance</th>
               <th className="px-4 py-3 font-medium">Current value</th>
-              <th className="px-4 py-3 font-medium">Purchase date</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -49,18 +66,13 @@ export function Assets() {
                 <td className="px-4 py-3 capitalize text-slate-400">
                   {asset.category.replace("_", " ")}
                 </td>
-                <td className="px-4 py-3">
-                  {asset.currency} {asset.purchaseValue.toLocaleString()}
-                </td>
-                <td className="px-4 py-3">
-                  {asset.currency} {asset.currentValue.toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-slate-400">{asset.purchaseDate}</td>
+                <td className="px-4 py-3">{format(asset.purchaseValue, asset.currency)}</td>
+                <td className="px-4 py-3">{format(asset.currentValue, asset.currency)}</td>
                 <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => remove.mutate(asset.id)}
-                    className="text-slate-500 hover:text-rose-400"
-                  >
+                  <button onClick={() => openEdit(asset)} className="text-slate-500 hover:text-emerald-400 mr-2">
+                    <Pencil size={16} />
+                  </button>
+                  <button onClick={() => remove.mutate(asset.id)} className="text-slate-500 hover:text-rose-400">
                     <Trash2 size={16} />
                   </button>
                 </td>
@@ -68,7 +80,7 @@ export function Assets() {
             ))}
             {list.data?.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
                   No assets yet. Add your first one to get started.
                 </td>
               </tr>
@@ -78,8 +90,21 @@ export function Assets() {
       </div>
 
       {showForm && (
-        <Modal title="Add asset" onClose={() => setShowForm(false)}>
-          <AssetForm onSubmit={handleCreate} isSubmitting={create.isPending} />
+        <Modal title={editing ? "Edit asset" : "Add asset"} onClose={closeModal}>
+          <AssetForm
+            onSubmit={handleSubmit}
+            isSubmitting={create.isPending || update.isPending}
+            displayCurrency={displayCurrency}
+            defaultValues={editing ? {
+              name: editing.name,
+              category: editing.category,
+              purchaseValue: editing.purchaseValue,
+              currentValue: editing.currentValue,
+              currency: editing.currency,
+              purchaseDate: editing.purchaseDate,
+              notes: editing.notes,
+            } : undefined}
+          />
         </Modal>
       )}
     </div>

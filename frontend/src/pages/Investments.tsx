@@ -1,19 +1,37 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import type { Investment } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { InvestmentForm } from "../components/forms/InvestmentForm";
 import { InvestmentPerformance } from "../components/charts/InvestmentPerformance";
 import type { InvestmentInput } from "../lib/schemas";
+import { useCurrency } from "../context/CurrencyContext";
 
 export function Investments() {
-  const { list, create, remove } = useResource<Investment>("investments");
+  const { list, create, update, remove } = useResource<Investment>("investments");
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Investment | null>(null);
+  const { format, displayCurrency } = useCurrency();
 
-  async function handleCreate(data: InvestmentInput) {
-    await create.mutateAsync(data);
+  async function handleSubmit(data: InvestmentInput) {
+    if (editing) {
+      await update.mutateAsync({ id: editing.id, payload: data });
+    } else {
+      await create.mutateAsync(data);
+    }
     setShowForm(false);
+    setEditing(null);
+  }
+
+  function openEdit(inv: Investment) {
+    setEditing(inv);
+    setShowForm(true);
+  }
+
+  function closeModal() {
+    setShowForm(false);
+    setEditing(null);
   }
 
   const holdings = list.data ?? [];
@@ -26,7 +44,7 @@ export function Investments() {
           <p className="text-sm text-slate-400">Portfolio performance across all holdings.</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { setEditing(null); setShowForm(true); }}
           className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400"
         >
           <Plus size={16} /> Add investment
@@ -60,32 +78,22 @@ export function Investments() {
                 <td className="px-4 py-3">
                   {inv.assetName} {inv.ticker && <span className="text-slate-500">({inv.ticker})</span>}
                 </td>
-                <td className="px-4 py-3">{inv.quantity}</td>
-                <td className="px-4 py-3">
-                  {inv.currency} {inv.averageBuyPrice.toLocaleString()}
+                <td className="px-4 py-3">{Number(inv.quantity)}</td>
+                <td className="px-4 py-3">{format(inv.averageBuyPrice, inv.currency)}</td>
+                <td className="px-4 py-3">{format(inv.currentPrice, inv.currency)}</td>
+                <td className="px-4 py-3">{format(inv.currentValue, inv.currency)}</td>
+                <td className={`px-4 py-3 ${Number(inv.profitLoss) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {Number(inv.profitLoss) >= 0 ? "+" : ""}
+                  {format(inv.profitLoss, inv.currency)}
                 </td>
-                <td className="px-4 py-3">
-                  {inv.currency} {inv.currentPrice.toLocaleString()}
-                </td>
-                <td className="px-4 py-3">
-                  {inv.currency} {inv.currentValue.toLocaleString()}
-                </td>
-                <td
-                  className={`px-4 py-3 ${inv.profitLoss >= 0 ? "text-emerald-400" : "text-rose-400"}`}
-                >
-                  {inv.profitLoss >= 0 ? "+" : ""}
-                  {inv.currency} {inv.profitLoss.toLocaleString()}
-                </td>
-                <td
-                  className={`px-4 py-3 ${inv.roiPercent >= 0 ? "text-emerald-400" : "text-rose-400"}`}
-                >
-                  {inv.roiPercent.toFixed(1)}%
+                <td className={`px-4 py-3 ${Number(inv.roiPercent) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {Number(inv.roiPercent).toFixed(1)}%
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => remove.mutate(inv.id)}
-                    className="text-slate-500 hover:text-rose-400"
-                  >
+                  <button onClick={() => openEdit(inv)} className="text-slate-500 hover:text-emerald-400 mr-2">
+                    <Pencil size={16} />
+                  </button>
+                  <button onClick={() => remove.mutate(inv.id)} className="text-slate-500 hover:text-rose-400">
                     <Trash2 size={16} />
                   </button>
                 </td>
@@ -103,8 +111,23 @@ export function Investments() {
       </div>
 
       {showForm && (
-        <Modal title="Add investment" onClose={() => setShowForm(false)}>
-          <InvestmentForm onSubmit={handleCreate} isSubmitting={create.isPending} />
+        <Modal title={editing ? "Edit investment" : "Add investment"} onClose={closeModal}>
+          <InvestmentForm
+            onSubmit={handleSubmit}
+            isSubmitting={create.isPending || update.isPending}
+            displayCurrency={displayCurrency}
+            defaultValues={editing ? {
+              assetName: editing.assetName,
+              ticker: editing.ticker,
+              type: editing.type,
+              quantity: editing.quantity,
+              averageBuyPrice: editing.averageBuyPrice,
+              currentPrice: editing.currentPrice,
+              broker: editing.broker,
+              currency: editing.currency,
+              purchaseDate: editing.purchaseDate,
+            } : undefined}
+          />
         </Modal>
       )}
     </div>

@@ -1,18 +1,36 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import type { Expense as ExpenseEntry } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { ExpenseForm } from "../components/forms/ExpenseForm";
 import type { ExpenseInput } from "../lib/schemas";
+import { useCurrency } from "../context/CurrencyContext";
 
 export function Expenses() {
-  const { list, create, remove } = useResource<ExpenseEntry>("expenses");
+  const { list, create, update, remove } = useResource<ExpenseEntry>("expenses");
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<ExpenseEntry | null>(null);
+  const { format, displayCurrency } = useCurrency();
 
-  async function handleCreate(data: ExpenseInput) {
-    await create.mutateAsync(data);
+  async function handleSubmit(data: ExpenseInput) {
+    if (editing) {
+      await update.mutateAsync({ id: editing.id, payload: data });
+    } else {
+      await create.mutateAsync(data);
+    }
     setShowForm(false);
+    setEditing(null);
+  }
+
+  function openEdit(entry: ExpenseEntry) {
+    setEditing(entry);
+    setShowForm(true);
+  }
+
+  function closeModal() {
+    setShowForm(false);
+    setEditing(null);
   }
 
   return (
@@ -23,7 +41,7 @@ export function Expenses() {
           <p className="text-sm text-slate-400">Where your money goes.</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { setEditing(null); setShowForm(true); }}
           className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400"
         >
           <Plus size={16} /> Add expense
@@ -36,8 +54,9 @@ export function Expenses() {
             <tr>
               <th className="px-4 py-3 font-medium">Category</th>
               <th className="px-4 py-3 font-medium">Merchant</th>
+              <th className="px-4 py-3 font-medium">Frequency</th>
               <th className="px-4 py-3 font-medium">Amount</th>
-              <th className="px-4 py-3 font-medium">Date</th>
+              <th className="px-4 py-3 font-medium">Note</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -46,15 +65,20 @@ export function Expenses() {
               <tr key={entry.id} className="text-slate-200">
                 <td className="px-4 py-3 capitalize">{entry.category}</td>
                 <td className="px-4 py-3 text-slate-400">{entry.merchant || "—"}</td>
-                <td className="px-4 py-3 text-rose-400">
-                  -{entry.currency} {entry.amount.toLocaleString()}
+                <td className="px-4 py-3 capitalize text-slate-400">
+                  {entry.frequency?.replace("_", " ") ?? "One-time"}
                 </td>
-                <td className="px-4 py-3 text-slate-400">{entry.date}</td>
+                <td className="px-4 py-3 text-rose-400">
+                  -{format(entry.amount, entry.currency)}
+                </td>
+                <td className="px-4 py-3 text-slate-400">
+                  {entry.notes || "—"}
+                </td>
                 <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => remove.mutate(entry.id)}
-                    className="text-slate-500 hover:text-rose-400"
-                  >
+                  <button onClick={() => openEdit(entry)} className="text-slate-500 hover:text-emerald-400 mr-2">
+                    <Pencil size={16} />
+                  </button>
+                  <button onClick={() => remove.mutate(entry.id)} className="text-slate-500 hover:text-rose-400">
                     <Trash2 size={16} />
                   </button>
                 </td>
@@ -62,7 +86,7 @@ export function Expenses() {
             ))}
             {list.data?.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                   No expenses recorded yet.
                 </td>
               </tr>
@@ -72,8 +96,21 @@ export function Expenses() {
       </div>
 
       {showForm && (
-        <Modal title="Add expense" onClose={() => setShowForm(false)}>
-          <ExpenseForm onSubmit={handleCreate} isSubmitting={create.isPending} />
+        <Modal title={editing ? "Edit expense" : "Add expense"} onClose={closeModal}>
+          <ExpenseForm
+            onSubmit={handleSubmit}
+            isSubmitting={create.isPending || update.isPending}
+            displayCurrency={displayCurrency}
+            defaultValues={editing ? {
+              category: editing.category,
+              merchant: editing.merchant,
+              amount: editing.amount,
+              currency: editing.currency,
+              frequency: editing.frequency,
+              date: editing.date,
+              notes: editing.notes,
+            } : undefined}
+          />
         </Modal>
       )}
     </div>
