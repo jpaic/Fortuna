@@ -8,6 +8,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useCurrency } from "../../context/CurrencyContext";
 
 const NAV_ITEMS = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
@@ -17,14 +18,17 @@ const NAV_ITEMS = [
   { to: "/expenses", label: "Expenses", icon: ArrowDownCircle },
 ];
 
+const CURRENCIES = ["EUR", "USD", "GBP", "CHF"];
+
 export function DashboardLayout() {
   const { user, logout } = useAuth();
+  const { displayCurrency, setDisplayCurrency } = useCurrency();
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100">
       <aside className="flex w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900/60 px-4 py-6">
         <div className="mb-8 px-2">
-          <p className="text-lg font-semibold tracking-tight text-white">Ledger</p>
+          <p className="text-lg font-semibold tracking-tight text-white">Fortuna</p>
           <p className="text-xs text-slate-500">Personal finance</p>
         </div>
 
@@ -48,13 +52,25 @@ export function DashboardLayout() {
           ))}
         </nav>
 
-        <div className="border-t border-slate-800 pt-4">
+        <div className="space-y-3 border-t border-slate-800 pt-4">
+          <div className="px-2">
+            <label className="mb-1 block text-xs text-slate-500">Display currency</label>
+            <select
+              value={displayCurrency}
+              onChange={(e) => setDisplayCurrency(e.target.value)}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
           <p className="truncate px-3 text-sm text-slate-300">
             {user?.firstName} {user?.lastName}
           </p>
           <button
             onClick={() => logout()}
-            className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-100"
           >
             <LogOut size={16} />
             Log out

@@ -4,12 +4,24 @@ import type { DashboardSummary } from "../types";
 import { Card } from "../components/ui/Card";
 import { NetWorthTimeline } from "../components/charts/NetWorthTimeline";
 import { AssetAllocation } from "../components/charts/AssetAllocation";
+import { useCurrency } from "../context/CurrencyContext";
 
 export function Dashboard() {
+  const { displayCurrency } = useCurrency();
+
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-summary"],
-    queryFn: async () => (await api.get<DashboardSummary>("/dashboard")).data,
+    queryKey: ["dashboard-summary", displayCurrency],
+    queryFn: async () =>
+      (await api.get<DashboardSummary>("/dashboard", { params: { currency: displayCurrency } })).data,
   });
+
+  const fmt = (n: number) =>
+    n.toLocaleString(undefined, {
+      style: "currency",
+      currency: displayCurrency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
 
   if (isLoading || !data) {
     return <p className="text-slate-400">Loading dashboard…</p>;
@@ -25,19 +37,16 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card
           title="Net worth"
-          value={`$${data.netWorth.toLocaleString()}`}
+          value={fmt(data.netWorth)}
           change={{
             value: `${data.netWorthChangePercent.toFixed(1)}%`,
             positive: data.netWorthChangePercent >= 0,
           }}
         />
-        <Card title="Total assets" value={`$${data.totalAssets.toLocaleString()}`} />
-        <Card
-          title="Investment portfolio"
-          value={`$${data.investmentPortfolioValue.toLocaleString()}`}
-        />
-        <Card title="Monthly income" value={`$${data.monthlyIncome.toLocaleString()}`} />
-        <Card title="Monthly expenses" value={`$${data.monthlyExpenses.toLocaleString()}`} />
+        <Card title="Total assets" value={fmt(data.totalAssets)} />
+        <Card title="Investment portfolio" value={fmt(data.investmentPortfolioValue)} />
+        <Card title="Monthly income" value={fmt(data.monthlyIncome)} />
+        <Card title="Monthly expenses" value={fmt(data.monthlyExpenses)} />
         <Card title="Savings rate" value={`${data.savingsRate.toFixed(1)}%`} />
       </div>
 
