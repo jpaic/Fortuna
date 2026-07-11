@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { registerSchema, type RegisterInput } from "../lib/schemas";
 import { useAuth } from "../context/AuthContext";
+import type { AxiosError } from "axios";
 
 const inputClass =
   "w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none";
@@ -24,8 +25,12 @@ export function Register() {
     try {
       await registerUser(data);
       navigate("/verify-email");
-    } catch {
-      setServerError("Could not create account. That email may already be in use.");
+    } catch (err: unknown) {
+      const axiosErr = err as AxiosError<{ error?: string }>;
+      const msg =
+        axiosErr.response?.data?.error ??
+        (err instanceof Error ? err.message : "Could not create account. Please try again.");
+      setServerError(msg);
     }
   }
 

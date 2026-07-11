@@ -5,6 +5,9 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
+const helmetFn = helmet as unknown as (...args: unknown[]) => express.Handler;
+const rateLimitFn = rateLimit as unknown as (...args: unknown[]) => express.Handler;
+
 import { authRouter } from "./auth/routes.js";
 import { usersRouter } from "./users/routes.js";
 import { assetsRouter } from "./assets/routes.js";
@@ -18,7 +21,9 @@ import { requireAuth } from "./middleware/auth.js";
 
 const app = express();
 
-app.use(helmet());
+if (process.env.VERCEL) app.set("trust proxy", 1);
+
+app.use(helmetFn());
 app.use(
   cors({
     origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
@@ -28,9 +33,9 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
+app.use(rateLimitFn({ windowMs: 15 * 60 * 1000, limit: 300 }));
 
-const authLimiter = rateLimit({
+const authLimiter = rateLimitFn({
   windowMs: 15 * 60 * 1000,
   limit: 20,
   message: { error: "Too many attempts. Try again later." },
@@ -63,7 +68,4 @@ app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
 app.use(errorHandler);
 
-const port = Number(process.env.PORT ?? 4000);
-app.listen(port, () => {
-  console.log(`API listening on http://localhost:${port}`);
-});
+export default app;

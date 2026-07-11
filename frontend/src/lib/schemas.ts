@@ -26,7 +26,7 @@ export const assetSchema = z.object({
   name: z.string().min(1, "Name is required"),
   category: z.enum(["cash", "real_estate", "vehicle", "other"]),
   purchaseValue: z.coerce.number().min(0),
-  currentValue: z.coerce.number().min(0),
+  currentValue: z.coerce.number().min(0).optional(),
   currency: z.string().length(3, "Use a 3-letter currency code"),
   purchaseDate: z.string().min(1),
   notes: z.string().optional(),

@@ -22,7 +22,7 @@ const FRANKFURTER_URL = "https://api.frankfurter.app/latest";
 async function getRates(from: string): Promise<Record<string, number>> {
   const resp = await fetch(`${FRANKFURTER_URL}?from=${from}&to=EUR,USD,GBP,CHF`);
   if (!resp.ok) return {};
-  const data = await resp.json();
+  const data = (await resp.json()) as { rates?: Record<string, number> };
   return data.rates ?? {};
 }
 

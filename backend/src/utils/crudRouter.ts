@@ -5,13 +5,10 @@ import { requireAuth } from "../middleware/auth.js";
 import { asyncHandler, ApiError } from "../middleware/error.js";
 
 interface ColumnMap {
-  // requestKey (camelCase, what the frontend sends) -> db column (snake_case)
   [requestKey: string]: string;
 }
 
 function buildSelect(table: string, columns: ColumnMap, computedColumns?: ColumnMap): string {
-  // Build a SELECT that aliases every column to camelCase so the JSON
-  // response matches what the frontend expects.
   const aliases: string[] = [
     `id`,
     `user_id AS "userId"`,
@@ -34,24 +31,18 @@ function buildSelect(table: string, columns: ColumnMap, computedColumns?: Column
   return `SELECT ${aliases.join(", ")} FROM ${table}`;
 }
 
-// Neon's serverless driver returns DECIMAL/NUMERIC columns as strings to
-// preserve precision. This converts them to JS numbers so the frontend
-// can call .toFixed() / arithmetic without crashing.
 const NUMERIC_RE = /^-?\d+(\.\d+)?$/;
-function castNumericStrings<T extends Record<string, unknown>>(row: T): T {
-  for (const key of Object.keys(row)) {
-    const val = row[key];
+function castRow(row: unknown): Record<string, unknown> {
+  const obj = row as Record<string, unknown>;
+  for (const key of Object.keys(obj)) {
+    const val = obj[key];
     if (typeof val === "string" && NUMERIC_RE.test(val)) {
-      (row as Record<string, unknown>)[key] = Number(val);
+      obj[key] = Number(val);
     }
   }
-  return row;
+  return obj;
 }
 
-// Builds a full CRUD router (list/get/create/update/delete) for a single
-// table. Every query is scoped to `user_id = req.userId`, so one user can
-// never read or mutate another user's rows even if they guess an id —
-// ownership is enforced at the query level, not just in application logic.
 export function createCrudRouter<TCreate extends Record<string, unknown>>(config: {
   table: string;
   columns: ColumnMap;
@@ -71,7 +62,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
         `${selectBase} WHERE user_id = $1 ORDER BY created_at DESC`,
         [req.userId]
       );
-      res.json(rows.map(castNumericStrings));
+      res.json(rows.map(castRow));
     })
   );
 
@@ -83,7 +74,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
         [req.params.id, req.userId]
       );
       if (!row) throw new ApiError(404, "Not found");
-      res.json(castNumericStrings(row));
+      res.json(castRow(row));
     })
   );
 
@@ -102,7 +93,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
          RETURNING *`,
         [req.userId, ...values]
       );
-      res.status(201).json(row && castNumericStrings(row));
+      res.status(201).json(castRow(row));
     })
   );
 
@@ -125,7 +116,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
         [req.params.id, req.userId, ...values]
       );
       if (!row) throw new ApiError(404, "Not found");
-      res.json(castNumericStrings(row));
+      res.json(castRow(row));
     })
   );
 

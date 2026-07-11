@@ -54,7 +54,7 @@ export function Assets() {
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Balance</th>
+              <th className="px-4 py-3 font-medium">Balance / Purchase value</th>
               <th className="px-4 py-3 font-medium">Current value</th>
               <th className="px-4 py-3" />
             </tr>
@@ -66,8 +66,12 @@ export function Assets() {
                 <td className="px-4 py-3 capitalize text-slate-400">
                   {asset.category.replace("_", " ")}
                 </td>
-                <td className="px-4 py-3">{format(asset.purchaseValue, asset.currency)}</td>
-                <td className="px-4 py-3">{format(asset.currentValue, asset.currency)}</td>
+                <td className="px-4 py-3">
+                  {format(asset.purchaseValue, asset.currency)}
+                </td>
+                <td className="px-4 py-3 text-slate-400">
+                  {asset.category === "cash" ? "—" : format(asset.currentValue, asset.currency)}
+                </td>
                 <td className="px-4 py-3 text-right">
                   <button onClick={() => openEdit(asset)} className="text-slate-500 hover:text-emerald-400 mr-2">
                     <Pencil size={16} />
