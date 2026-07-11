@@ -15,8 +15,9 @@ const createSchema = z.object({
   category,
   merchant: z.string().optional(),
   amount: z.number().positive(),
-  currency: z.string().length(3).default("USD"),
+  currency: z.string().length(3).default("EUR"),
   date: z.string(),
+  frequency: z.enum(["one_time", "weekly", "monthly", "yearly"]).default("one_time"),
   notes: z.string().optional(),
 });
 
@@ -28,6 +29,7 @@ const columns = {
   amount: "amount",
   currency: "currency",
   date: "date",
+  frequency: "frequency",
   notes: "notes",
 };
 

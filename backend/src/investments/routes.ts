@@ -11,7 +11,7 @@ const createSchema = z.object({
   averageBuyPrice: z.number().min(0),
   currentPrice: z.number().min(0),
   broker: z.string().optional(),
-  currency: z.string().length(3).default("USD"),
+  currency: z.string().length(3).default("EUR"),
   purchaseDate: z.string(),
 });
 
@@ -32,9 +32,17 @@ const columns = {
   purchaseDate: "purchase_date",
 };
 
+const computedColumns = {
+  investmentCost: "investment_cost",
+  currentValue: "current_value",
+  profitLoss: "profit_loss",
+  roiPercent: "roi_percent",
+};
+
 export const investmentsRouter = createCrudRouter({
   table: "investments",
   columns,
+  computedColumns,
   createSchema,
   updateSchema,
 });

@@ -8,7 +8,7 @@ const createSchema = z.object({
   source: z.string().min(1),
   category,
   amount: z.number().positive(),
-  currency: z.string().length(3).default("USD"),
+  currency: z.string().length(3).default("EUR"),
   frequency: frequency.default("monthly"),
   date: z.string(),
   notes: z.string().optional(),

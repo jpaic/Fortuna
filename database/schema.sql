@@ -81,9 +81,9 @@ CREATE TABLE assets (
   user_id         UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   name            VARCHAR(255) NOT NULL,
   category        VARCHAR(30) NOT NULL
-                  CHECK (category IN ('cash', 'real_estate', 'vehicle', 'crypto', 'stock', 'bond', 'other')),
-  purchase_value  DECIMAL(18, 2) NOT NULL CHECK (purchase_value >= 0),
-  current_value   DECIMAL(18, 2) NOT NULL CHECK (current_value >= 0),
+                  CHECK (category IN ('cash', 'real_estate', 'vehicle', 'other')),
+  purchase_value  DECIMAL(24, 8) NOT NULL CHECK (purchase_value >= 0),
+  current_value   DECIMAL(24, 8) NOT NULL CHECK (current_value >= 0),
   currency        CHAR(3) NOT NULL DEFAULT 'USD',
   purchase_date   DATE NOT NULL,
   notes           TEXT,
@@ -204,6 +204,8 @@ CREATE TABLE expenses (
   currency    CHAR(3) NOT NULL DEFAULT 'USD',
   date        DATE NOT NULL,
   notes       TEXT,
+  frequency   VARCHAR(20) NOT NULL DEFAULT 'one_time'
+              CHECK (frequency IN ('one_time', 'weekly', 'monthly', 'yearly')),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -290,3 +292,10 @@ CREATE TABLE net_worth_snapshots (
 );
 
 CREATE INDEX idx_net_worth_snapshots_user_date ON net_worth_snapshots (user_id, snapshot_date);
+
+-- 012_widen_asset_decimals.sql
+-- Widen DECIMAL precision on assets to support crypto values (8 decimal places).
+
+ALTER TABLE assets
+  ALTER COLUMN purchase_value TYPE DECIMAL(24, 8),
+  ALTER COLUMN current_value  TYPE DECIMAL(24, 8);

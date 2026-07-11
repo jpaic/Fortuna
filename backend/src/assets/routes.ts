@@ -1,14 +1,14 @@
 import { z } from "zod";
 import { createCrudRouter } from "../utils/crudRouter.js";
 
-const category = z.enum(["cash", "real_estate", "vehicle", "crypto", "stock", "bond", "other"]);
+const category = z.enum(["cash", "real_estate", "vehicle", "other"]);
 
 const createSchema = z.object({
   name: z.string().min(1),
   category,
   purchaseValue: z.number().min(0),
   currentValue: z.number().min(0),
-  currency: z.string().length(3).default("USD"),
+  currency: z.string().length(3).default("EUR"),
   purchaseDate: z.string(), // ISO date
   notes: z.string().optional(),
 });

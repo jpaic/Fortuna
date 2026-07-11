@@ -11,6 +11,8 @@ CREATE TABLE expenses (
   currency    CHAR(3) NOT NULL DEFAULT 'USD',
   date        DATE NOT NULL,
   notes       TEXT,
+  frequency   VARCHAR(20) NOT NULL DEFAULT 'one_time'
+              CHECK (frequency IN ('one_time', 'weekly', 'monthly', 'yearly')),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
