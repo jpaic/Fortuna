@@ -6,9 +6,8 @@ import { asyncHandler } from "../middleware/error.js";
 export const analyticsRouter = Router();
 analyticsRouter.use(requireAuth);
 
-interface NetWorthRow {
-  total_assets: string;
-  total_liabilities: string;
+interface SnapshotRow {
+  snapshot_date: string;
   net_worth: string;
 }
 
@@ -18,55 +17,54 @@ interface AllocationRow {
   percent: string;
 }
 
-interface MonthlyRow {
-  month: string;
-  income: string;
-  expenses: string;
-  savings: string;
+const FRANKFURTER_URL = "https://api.frankfurter.app/latest";
+
+async function getRates(from: string): Promise<Record<string, number>> {
+  const resp = await fetch(`${FRANKFURTER_URL}?from=${from}&to=EUR,USD,GBP,CHF`);
+  if (!resp.ok) return {};
+  const data = await resp.json();
+  return data.rates ?? {};
 }
 
-interface SnapshotRow {
-  snapshot_date: string;
-  net_worth: string;
+function convert(amount: number, from: string, to: string, rates: Record<string, number>): number {
+  if (from === to) return amount;
+  // rates are "1 from = X to" — but Frankfurter returns rates relative to `from`
+  // e.g. from=EUR => rates = { USD: 1.08, GBP: 0.86, CHF: 0.94 }
+  // To convert USD -> EUR: amount / rates.USD
+  // To convert EUR -> USD: amount * rates.USD
+  if (from === Object.keys(rates)[0]) {
+    // from is the base currency of the rates response
+    const rate = rates[to];
+    return rate ? amount * rate : amount;
+  }
+  const rate = rates[from];
+  return rate ? amount / rate : amount;
 }
 
 analyticsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const userId = req.userId;
+    const targetCurrency = String(req.query.currency ?? "EUR");
 
-    const [netWorth, allocation, monthly, history, investmentAgg] = await Promise.all([
-      queryOne<NetWorthRow>(
-        `SELECT
-           COALESCE((SELECT SUM(current_value) FROM assets WHERE user_id = $1), 0)
-             + COALESCE((SELECT SUM(current_value) FROM investments WHERE user_id = $1), 0)
-             AS total_assets,
-           COALESCE((SELECT SUM(current_balance) FROM liabilities WHERE user_id = $1), 0)
-             AS total_liabilities,
-           (
-             COALESCE((SELECT SUM(current_value) FROM assets WHERE user_id = $1), 0)
-             + COALESCE((SELECT SUM(current_value) FROM investments WHERE user_id = $1), 0)
-             - COALESCE((SELECT SUM(current_balance) FROM liabilities WHERE user_id = $1), 0)
-           ) AS net_worth`,
+    const rates = await getRates(targetCurrency);
+
+    // Fetch all raw data
+    const [rawAssets, rawInvestments, rawIncome, rawExpenses, history] = await Promise.all([
+      query<{ current_value: string; currency: string; category: string; name: string }>(
+        `SELECT current_value, currency, category, name FROM assets WHERE user_id = $1`,
         [userId]
       ),
-      query<AllocationRow>(
-        `WITH combined AS (
-           SELECT category, current_value FROM assets WHERE user_id = $1
-           UNION ALL
-           SELECT type AS category, current_value FROM investments WHERE user_id = $1
-         )
-         SELECT category, SUM(current_value) AS value,
-                ROUND(SUM(current_value) / NULLIF(SUM(SUM(current_value)) OVER (), 0) * 100, 1) AS percent
-         FROM combined
-         GROUP BY category
-         ORDER BY value DESC`,
+      query<{ current_value: string; currency: string; type: string; asset_name: string; ticker: string }>(
+        `SELECT current_value, currency, type, asset_name, ticker FROM investments WHERE user_id = $1`,
         [userId]
       ),
-      queryOne<MonthlyRow>(
-        `SELECT
-           COALESCE(SUM(CASE WHEN date >= date_trunc('month', now()) THEN amount END), 0) AS income
-         FROM income WHERE user_id = $1`,
+      query<{ amount: string; currency: string; frequency: string }>(
+        `SELECT amount, currency, frequency FROM income WHERE user_id = $1`,
+        [userId]
+      ),
+      query<{ amount: string; currency: string; frequency: string }>(
+        `SELECT amount, currency, frequency FROM expenses WHERE user_id = $1`,
         [userId]
       ),
       query<SnapshotRow>(
@@ -74,22 +72,62 @@ analyticsRouter.get(
          WHERE user_id = $1 ORDER BY snapshot_date`,
         [userId]
       ),
-      queryOne<{ total_value: string }>(
-        `SELECT COALESCE(SUM(current_value), 0) AS total_value FROM investments WHERE user_id = $1`,
-        [userId]
-      ),
     ]);
 
-    const monthlyExpenses = await queryOne<{ total: string }>(
-      `SELECT COALESCE(SUM(amount), 0) AS total FROM expenses
-       WHERE user_id = $1 AND date >= date_trunc('month', now())`,
-      [userId]
-    );
+    // Convert and sum assets
+    const totalAssets =
+      rawAssets.reduce((sum, a) => sum + convert(Number(a.current_value), a.currency, targetCurrency, rates), 0);
 
-    const monthlyIncome = Number(monthly?.income ?? 0);
-    const monthlyExpensesTotal = Number(monthlyExpenses?.total ?? 0);
-    const savingsRate =
-      monthlyIncome > 0 ? ((monthlyIncome - monthlyExpensesTotal) / monthlyIncome) * 100 : 0;
+    // Convert and sum investments
+    const investmentValue =
+      rawInvestments.reduce((sum, i) => sum + convert(Number(i.current_value), i.currency, targetCurrency, rates), 0);
+
+    const netWorth = totalAssets + investmentValue;
+
+    // Asset allocation (convert each to target currency)
+    const allocMap = new Map<string, number>();
+    for (const a of rawAssets) {
+      const converted = convert(Number(a.current_value), a.currency, targetCurrency, rates);
+      allocMap.set(a.name, (allocMap.get(a.name) ?? 0) + converted);
+    }
+    for (const i of rawInvestments) {
+      const converted = convert(Number(i.current_value), i.currency, targetCurrency, rates);
+      const label = i.ticker ? `${i.asset_name} (${i.ticker})` : i.asset_name;
+      allocMap.set(label, (allocMap.get(label) ?? 0) + converted);
+    }
+    const totalAlloc = [...allocMap.values()].reduce((a, b) => a + b, 0);
+    const allocation = [...allocMap.entries()]
+      .map(([category, value]) => ({
+        category,
+        value: totalAlloc > 0 ? Math.round((value / totalAlloc) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    // Monthly income: normalize to monthly equivalent
+    const monthlyIncome = rawIncome.reduce((sum, i) => {
+      const converted = convert(Number(i.amount), i.currency, targetCurrency, rates);
+      switch (i.frequency) {
+        case "weekly":  return sum + converted * 4.33;
+        case "monthly": return sum + converted;
+        case "yearly":  return sum + converted / 12;
+        default:        return sum; // one_time — excluded from recurring monthly
+      }
+    }, 0);
+
+    // Monthly expenses: normalize to monthly equivalent
+    const monthlyExpenses = rawExpenses.reduce((sum, e) => {
+      const converted = convert(Number(e.amount), e.currency, targetCurrency, rates);
+      switch (e.frequency) {
+        case "weekly":  return sum + converted * 4.33;
+        case "monthly": return sum + converted;
+        case "yearly":  return sum + converted / 12;
+        default:        return sum; // one_time — excluded from recurring monthly
+      }
+    }, 0);
+
+    const savingsRate = monthlyIncome > 0
+      ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100
+      : 0;
 
     const historyPoints = history.map((h) => ({
       date: h.snapshot_date,
@@ -98,23 +136,19 @@ analyticsRouter.get(
       totalLiabilities: 0,
     }));
 
-    const firstNetWorth = historyPoints[0]?.netWorth ?? Number(netWorth?.net_worth ?? 0);
-    const currentNetWorth = Number(netWorth?.net_worth ?? 0);
+    const firstNetWorth = historyPoints[0]?.netWorth ?? netWorth;
     const netWorthChangePercent =
-      firstNetWorth !== 0 ? ((currentNetWorth - firstNetWorth) / Math.abs(firstNetWorth)) * 100 : 0;
+      firstNetWorth !== 0 ? ((netWorth - firstNetWorth) / Math.abs(firstNetWorth)) * 100 : 0;
 
     res.json({
-      netWorth: currentNetWorth,
+      netWorth,
       netWorthChangePercent,
-      totalAssets: Number(netWorth?.total_assets ?? 0),
-      investmentPortfolioValue: Number(investmentAgg?.total_value ?? 0),
+      totalAssets,
+      investmentPortfolioValue: investmentValue,
       monthlyIncome,
-      monthlyExpenses: monthlyExpensesTotal,
+      monthlyExpenses,
       savingsRate,
-      assetAllocation: allocation.map((a) => ({
-        category: a.category,
-        value: Number(a.percent),
-      })),
+      assetAllocation: allocation,
       netWorthHistory: historyPoints,
     });
   })
