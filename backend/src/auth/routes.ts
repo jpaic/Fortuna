@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { asyncHandler } from "../middleware/error.js";
+import { requireAuth } from "../middleware/auth.js";
 import * as authService from "./service.js";
 import {
   registerSchema,
@@ -89,6 +90,15 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const { token, newPassword } = resetPasswordSchema.parse(req.body);
     await authService.resetPassword(token, newPassword);
+    res.json({ success: true });
+  })
+);
+
+authRouter.post(
+  "/resend-verification",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    await authService.resendVerificationEmail(req.userId!, req.userEmail!);
     res.json({ success: true });
   })
 );

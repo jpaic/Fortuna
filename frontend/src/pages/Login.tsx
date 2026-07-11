@@ -21,8 +21,12 @@ export function Login() {
     try {
       await login(data.email, data.password);
       navigate("/");
-    } catch {
-      setServerError("Invalid email or password.");
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error === "Please verify your email before logging in"
+          ? "Please verify your email before logging in."
+          : "Invalid email or password.";
+      setServerError(msg);
     }
   }
 

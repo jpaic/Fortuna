@@ -72,6 +72,8 @@ export async function login(email: string, password: string) {
   const valid = await verifyPassword(password, user.password_hash);
   if (!valid) throw new ApiError(401, "Invalid email or password");
 
+  if (!user.email_verified) throw new ApiError(403, "Please verify your email before logging in");
+
   const tokens = await issueTokenPair(user.id, user.email);
   return { user: toPublicUser(user), ...tokens };
 }
@@ -172,4 +174,19 @@ export async function resetPassword(token: string, newPassword: string) {
   await query(`UPDATE email_verification_tokens SET used_at = now() WHERE id = $1`, [row.id]);
   // Invalidate all existing sessions on password change
   await query(`UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1`, [row.user_id]);
+}
+
+export async function resendVerificationEmail(userId: string, email: string) {
+  const row = await queryOne<{ used_at: string | null }>(
+    `SELECT used_at FROM email_verification_tokens
+     WHERE user_id = $1 AND purpose = 'email_verification'
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  );
+
+  if (row && !row.used_at) {
+    throw new ApiError(429, "A verification email was already sent recently");
+  }
+
+  await issueVerificationEmail(userId, email);
 }

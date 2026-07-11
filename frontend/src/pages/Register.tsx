@@ -23,7 +23,7 @@ export function Register() {
     setServerError(null);
     try {
       await registerUser(data);
-      navigate("/");
+      navigate("/verify-email");
     } catch {
       setServerError("Could not create account. That email may already be in use.");
     }
