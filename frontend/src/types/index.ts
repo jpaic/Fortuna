@@ -26,9 +26,6 @@ export type AssetCategory =
   | "cash"
   | "real_estate"
   | "vehicle"
-  | "crypto"
-  | "stock"
-  | "bond"
   | "other";
 
 export interface Investment {
@@ -73,6 +70,7 @@ export interface Expense {
   merchant?: string;
   amount: number;
   currency: string;
+  frequency: "one_time" | "weekly" | "monthly" | "yearly";
   date: string;
   notes?: string;
 }

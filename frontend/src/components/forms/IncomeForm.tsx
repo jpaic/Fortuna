@@ -10,20 +10,28 @@ const inputClass =
 const labelClass = "mb-1 block text-sm text-slate-400";
 
 export function IncomeForm({
+  defaultValues,
   onSubmit,
   isSubmitting,
+  displayCurrency,
 }: {
+  defaultValues?: Partial<IncomeInput>;
   onSubmit: (data: IncomeInput) => void;
   isSubmitting?: boolean;
+  displayCurrency?: string;
 }) {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<IncomeFormValues, unknown, IncomeInput>({
     resolver: zodResolver(incomeSchema),
-    defaultValues: { currency: "USD", category: "salary", frequency: "monthly" },
+    defaultValues: { currency: displayCurrency ?? "EUR", category: "salary", frequency: "monthly", date: new Date().toISOString().slice(0, 10), ...defaultValues },
   });
+
+  const frequency = watch("frequency");
+  const isRecurring = frequency !== "one_time";
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -56,20 +64,26 @@ export function IncomeForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className={`grid gap-4 ${isRecurring ? "grid-cols-2" : "grid-cols-3"}`}>
         <div>
           <label className={labelClass}>Amount</label>
-          <input type="number" step="0.01" {...register("amount")} className={inputClass} />
+          <input type="number" step="any" {...register("amount")} className={inputClass} />
           {errors.amount && <p className="mt-1 text-xs text-rose-400">{errors.amount.message}</p>}
         </div>
         <div>
           <label className={labelClass}>Currency</label>
-          <input {...register("currency")} maxLength={3} className={`${inputClass} uppercase`} />
+          <select {...register("currency")} className={`${inputClass} uppercase`}>
+            {["EUR", "USD", "GBP", "CHF"].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
         </div>
-        <div>
-          <label className={labelClass}>Date</label>
-          <input type="date" {...register("date")} className={inputClass} />
-        </div>
+        {!isRecurring && (
+          <div>
+            <label className={labelClass}>Date</label>
+            <input type="date" {...register("date")} className={inputClass} />
+          </div>
+        )}
       </div>
 
       <div>

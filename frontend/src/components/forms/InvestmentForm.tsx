@@ -12,10 +12,12 @@ export function InvestmentForm({
   defaultValues,
   onSubmit,
   isSubmitting,
+  displayCurrency,
 }: {
   defaultValues?: Partial<InvestmentInput>;
   onSubmit: (data: InvestmentInput) => void;
   isSubmitting?: boolean;
+  displayCurrency?: string;
 }) {
   const {
     register,
@@ -23,7 +25,7 @@ export function InvestmentForm({
     formState: { errors },
   } = useForm<InvestmentFormValues, unknown, InvestmentInput>({
     resolver: zodResolver(investmentSchema),
-    defaultValues: { currency: "USD", type: "stock", ...defaultValues },
+    defaultValues: { currency: displayCurrency ?? "EUR", type: "stock", ...defaultValues },
   });
 
   return (
@@ -56,7 +58,7 @@ export function InvestmentForm({
       <div className="grid grid-cols-3 gap-4">
         <div>
           <label className={labelClass}>Quantity</label>
-          <input type="number" step="0.0001" {...register("quantity")} className={inputClass} />
+          <input type="number" step="any" {...register("quantity")} className={inputClass} />
           {errors.quantity && (
             <p className="mt-1 text-xs text-rose-400">{errors.quantity.message}</p>
           )}
@@ -65,14 +67,14 @@ export function InvestmentForm({
           <label className={labelClass}>Avg. buy price</label>
           <input
             type="number"
-            step="0.01"
+            step="any"
             {...register("averageBuyPrice")}
             className={inputClass}
           />
         </div>
         <div>
           <label className={labelClass}>Current price</label>
-          <input type="number" step="0.01" {...register("currentPrice")} className={inputClass} />
+          <input type="number" step="any" {...register("currentPrice")} className={inputClass} />
         </div>
       </div>
 
@@ -83,7 +85,11 @@ export function InvestmentForm({
         </div>
         <div>
           <label className={labelClass}>Currency</label>
-          <input {...register("currency")} maxLength={3} className={`${inputClass} uppercase`} />
+          <select {...register("currency")} className={`${inputClass} uppercase`}>
+            {["EUR", "USD", "GBP", "CHF"].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className={labelClass}>Purchase date</label>
