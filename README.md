@@ -1,83 +1,122 @@
-# Financial Platform
+# Fortuna
 
-A personal financial management platform: net worth tracking, investment
-portfolio performance, income/expense tracking, and dashboard analytics —
-replacing a spreadsheet with a database-driven web app.
+A full-stack personal finance management platform — track net worth, investment portfolios, income and expenses, all from a single dashboard.
 
-## Stack
+## Features
 
-- **Frontend:** React + TypeScript, Vite, Tailwind CSS, TanStack Query, React Hook Form + Zod, Recharts
-- **Backend:** Node.js + Express + TypeScript
-- **Database:** Neon (serverless PostgreSQL)
-- **Auth:** JWT (short-lived access token in memory, refresh token in an HTTP-only cookie), bcrypt
-- **Email:** Resend (verification, password reset)
-- **Deployment:** Vercel (frontend); backend can also deploy to Vercel as serverless functions, or any Node host
+- **Dashboard** — net worth overview, savings rate, asset allocation, and net worth timeline
+- **Assets** — track cash, real estate, vehicles, crypto, stocks, bonds, and other holdings
+- **Investments** — portfolio tracker with auto-calculated ROI, profit/loss, and cost basis (stored generated columns)
+- **Income** — salary, freelance, dividends, rental, and other income streams with frequency tracking
+- **Expenses** — categorized spending with merchant tracking and date filtering
+- **Authentication** — email/password registration, email verification, password reset, JWT access + refresh token rotation
+- **Analytics** — income vs. expenses, investment performance, and asset allocation charts
 
-## Project structure
+## Tech Stack
+
+| Layer | Technologies |
+|-------|-------------|
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, TanStack Query, React Hook Form, Zod, Recharts, Framer Motion |
+| Backend | Node.js, Express, TypeScript, Zod validation, Helmet, CORS, rate limiting |
+| Database | PostgreSQL (Neon), UUID primary keys, stored generated columns, migration system |
+| Auth | JWT (access + refresh), bcrypt, HTTP-only cookies, email verification via Resend |
+| Tooling | oxlint, PostCSS, tsx (dev runner) |
+
+## Project Structure
 
 ```
-financial-platform/
-├── frontend/               React + TypeScript app (Vite)
+fortuna/
+├── frontend/                  React + TypeScript SPA (Vite)
 │   └── src/
-│       ├── components/     forms/, charts/, layout/, ui/
-│       ├── pages/          route-level screens
-│       ├── context/        AuthContext
-│       ├── hooks/          useResource (generic CRUD hook)
-│       ├── lib/            api client, zod schemas, query client
-│       └── types/          shared TS types (mirrors DB schema)
+│       ├── components/        forms/, charts/, layout/, ui/
+│       ├── pages/             Dashboard, Assets, Investments, Income, Expenses, Login, Register
+│       ├── context/           AuthContext (session state)
+│       ├── hooks/             useResource (generic CRUD hook)
+│       ├── lib/               API client, Zod schemas, query client
+│       └── types/             TypeScript types mirroring the DB schema
 │
-├── backend/                 Express + TypeScript API
+├── backend/                   Express + TypeScript API
 │   └── src/
-│       ├── auth/            register/login/refresh/verify/reset
-│       ├── users/           current-user profile
-│       ├── assets/          assets CRUD
-│       ├── investments/     investments CRUD (generated ROI columns)
-│       ├── income/          income CRUD
-│       ├── expenses/        expenses CRUD
-│       ├── analytics/       dashboard summary aggregation
-│       ├── middleware/      auth guard, error handler
-│       ├── utils/           jwt, password hashing, generic CRUD router
-│       └── db/               Neon pool + migration runner
+│       ├── auth/              register, login, refresh, verify, reset
+│       ├── users/             current user profile
+│       ├── assets/            assets CRUD
+│       ├── investments/       investments CRUD (generated ROI columns)
+│       ├── income/            income CRUD
+│       ├── expenses/          expenses CRUD
+│       ├── analytics/         dashboard summary aggregation
+│       ├── middleware/        auth guard, error handler
+│       ├── utils/             JWT, password hashing, generic CRUD router
+│       └── db/                Neon connection pool, migration runner
 │
 └── database/
-    ├── migrations/          numbered .sql files, applied in order
-    ├── schema.sql           combined migrations, for fresh setup
-    └── queries.sql          reference analytics queries used by the backend
+    ├── migrations/            numbered SQL files (applied in order)
+    ├── schema.sql             combined migrations for fresh setup
+    └── queries.sql            reference analytics queries
 ```
 
-## Getting started
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- A [Neon](https://neon.tech) account (or any PostgreSQL instance)
+- A [Resend](https://resend.com) API key (for email verification)
 
 ### 1. Database
 
-Create a Neon project, then apply the schema:
-
 ```bash
 cd backend
-cp .env.example .env        # fill in DATABASE_URL from the Neon dashboard
+cp .env.example .env    # fill in DATABASE_URL
 npm install
-npm run migrate             # applies database/migrations/*.sql in order
+npm run migrate         # applies database/migrations/*.sql in order
 ```
 
 ### 2. Backend
 
 ```bash
 cd backend
-npm run dev                 # http://localhost:4000
+cp .env.example .env    # fill in JWT secrets, RESEND_API_KEY, etc.
+npm install
+npm run dev             # http://localhost:4000
 ```
 
 ### 3. Frontend
 
 ```bash
 cd frontend
-cp .env.example .env        # VITE_API_URL=http://localhost:4000/api
+cp .env.example .env    # set VITE_API_URL=http://localhost:4000/api
 npm install
-npm run dev                 # http://localhost:5173
+npm run dev             # http://localhost:5173
 ```
 
-## Security notes
+## API Endpoints
 
-- Passwords are hashed with bcrypt (12 rounds), never stored or logged in plaintext.
-- Access tokens live in memory on the client only; refresh tokens are HTTP-only, `SameSite=Strict` cookies scoped to `/api/auth`.
-- Every database query for assets/investments/income/expenses is scoped to `WHERE user_id = $1` — ownership is enforced at the query level, not just checked in application code.
-- All SQL is parameterized (see `backend/src/db/pool.ts`); there is no string-concatenated SQL anywhere in the codebase.
-- Auth endpoints have a stricter rate limit (20 requests / 15 min) than the rest of the API.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Create a new account |
+| POST | `/api/auth/login` | Sign in |
+| POST | `/api/auth/logout` | Revoke refresh token |
+| POST | `/api/auth/refresh` | Rotate access token |
+| GET | `/api/auth/verify/:token` | Verify email address |
+| POST | `/api/auth/forgot-password` | Request password reset email |
+| POST | `/api/auth/reset-password` | Reset password with token |
+| GET | `/api/users/me` | Get current user profile |
+| GET/POST/PUT/DELETE | `/api/assets` | Assets CRUD |
+| GET/POST/PUT/DELETE | `/api/investments` | Investments CRUD |
+| GET/POST/PUT/DELETE | `/api/income` | Income CRUD |
+| GET/POST/PUT/DELETE | `/api/expenses` | Expenses CRUD |
+| GET | `/api/dashboard` | Aggregated dashboard summary |
+| GET | `/api/health` | Health check |
+
+## Security
+
+- Passwords hashed with bcrypt (12 rounds)
+- Access tokens stored in memory only; refresh tokens in HTTP-only, `SameSite=Strict` cookies
+- Row-level ownership enforced at the query level (`WHERE user_id = $1`)
+- All SQL is parameterized — no string concatenation
+- Stricter rate limiting on auth endpoints (20 requests / 15 min)
+- Helmet security headers enabled
+
+## License
+
+[Apache 2.0](LICENSE) — Copyright 2026 Jovan Paić
