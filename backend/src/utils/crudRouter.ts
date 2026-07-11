@@ -9,6 +9,25 @@ interface ColumnMap {
   [requestKey: string]: string;
 }
 
+function buildSelect(table: string, columns: ColumnMap): string {
+  // Build a SELECT that aliases every column to camelCase so the JSON
+  // response matches what the frontend expects.
+  const aliases: string[] = [
+    `id`,
+    `user_id AS "userId"`,
+    `created_at AS "createdAt"`,
+  ];
+
+  for (const [camel, snake] of Object.entries(columns)) {
+    if (snake === "id" || snake === "user_id" || snake === "created_at") continue;
+    aliases.push(`${snake} AS "${camel}"`);
+  }
+
+  aliases.push(`updated_at AS "updatedAt"`);
+
+  return `SELECT ${aliases.join(", ")} FROM ${table}`;
+}
+
 // Builds a full CRUD router (list/get/create/update/delete) for a single
 // table. Every query is scoped to `user_id = req.userId`, so one user can
 // never read or mutate another user's rows even if they guess an id —
@@ -22,11 +41,13 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
   const router = Router();
   router.use(requireAuth);
 
+  const selectBase = buildSelect(config.table, config.columns);
+
   router.get(
     "/",
     asyncHandler(async (req, res) => {
       const rows = await query(
-        `SELECT * FROM ${config.table} WHERE user_id = $1 ORDER BY created_at DESC`,
+        `${selectBase} WHERE user_id = $1 ORDER BY created_at DESC`,
         [req.userId]
       );
       res.json(rows);
@@ -37,7 +58,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
     "/:id",
     asyncHandler(async (req, res) => {
       const row = await queryOne(
-        `SELECT * FROM ${config.table} WHERE id = $1 AND user_id = $2`,
+        `${selectBase} WHERE id = $1 AND user_id = $2`,
         [req.params.id, req.userId]
       );
       if (!row) throw new ApiError(404, "Not found");
