@@ -13,6 +13,8 @@ import { incomeRouter } from "./income/routes.js";
 import { expensesRouter } from "./expenses/routes.js";
 import { analyticsRouter } from "./analytics/dashboard.js";
 import { errorHandler } from "./middleware/error.js";
+import { asyncHandler } from "./middleware/error.js";
+import { requireAuth } from "./middleware/auth.js";
 
 const app = express();
 
@@ -20,14 +22,12 @@ app.use(helmet());
 app.use(
   cors({
     origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
-    credentials: true, // required so the refresh-token cookie is sent/received
+    credentials: true,
   })
 );
 app.use(express.json());
 app.use(cookieParser());
 
-// Generous global limit; auth endpoints get a stricter one below to slow
-// down credential-stuffing / brute-force attempts specifically.
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
 
 const authLimiter = rateLimit({
@@ -43,6 +43,21 @@ app.use("/api/investments", investmentsRouter);
 app.use("/api/income", incomeRouter);
 app.use("/api/expenses", expensesRouter);
 app.use("/api/dashboard", analyticsRouter);
+
+const CURRENCIES = "EUR,USD,GBP,CHF";
+app.get(
+  "/api/exchange-rates",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const from = String(req.query.from ?? "USD");
+    const resp = await fetch(
+      `https://api.frankfurter.app/latest?from=${from}&to=${CURRENCIES}`
+    );
+    if (!resp.ok) throw new Error("Failed to fetch rates");
+    const data = await resp.json();
+    res.json(data);
+  })
+);
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 

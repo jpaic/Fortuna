@@ -9,7 +9,7 @@ interface ColumnMap {
   [requestKey: string]: string;
 }
 
-function buildSelect(table: string, columns: ColumnMap): string {
+function buildSelect(table: string, columns: ColumnMap, computedColumns?: ColumnMap): string {
   // Build a SELECT that aliases every column to camelCase so the JSON
   // response matches what the frontend expects.
   const aliases: string[] = [
@@ -23,9 +23,29 @@ function buildSelect(table: string, columns: ColumnMap): string {
     aliases.push(`${snake} AS "${camel}"`);
   }
 
+  if (computedColumns) {
+    for (const [camel, snake] of Object.entries(computedColumns)) {
+      aliases.push(`${snake} AS "${camel}"`);
+    }
+  }
+
   aliases.push(`updated_at AS "updatedAt"`);
 
   return `SELECT ${aliases.join(", ")} FROM ${table}`;
+}
+
+// Neon's serverless driver returns DECIMAL/NUMERIC columns as strings to
+// preserve precision. This converts them to JS numbers so the frontend
+// can call .toFixed() / arithmetic without crashing.
+const NUMERIC_RE = /^-?\d+(\.\d+)?$/;
+function castNumericStrings<T extends Record<string, unknown>>(row: T): T {
+  for (const key of Object.keys(row)) {
+    const val = row[key];
+    if (typeof val === "string" && NUMERIC_RE.test(val)) {
+      (row as Record<string, unknown>)[key] = Number(val);
+    }
+  }
+  return row;
 }
 
 // Builds a full CRUD router (list/get/create/update/delete) for a single
@@ -34,14 +54,15 @@ function buildSelect(table: string, columns: ColumnMap): string {
 // ownership is enforced at the query level, not just in application logic.
 export function createCrudRouter<TCreate extends Record<string, unknown>>(config: {
   table: string;
-  columns: ColumnMap; // maps request keys to db columns, for both create + update
+  columns: ColumnMap;
+  computedColumns?: ColumnMap;
   createSchema: z.ZodType<TCreate>;
   updateSchema: z.ZodType<Partial<TCreate>>;
 }) {
   const router = Router();
   router.use(requireAuth);
 
-  const selectBase = buildSelect(config.table, config.columns);
+  const selectBase = buildSelect(config.table, config.columns, config.computedColumns);
 
   router.get(
     "/",
@@ -50,7 +71,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
         `${selectBase} WHERE user_id = $1 ORDER BY created_at DESC`,
         [req.userId]
       );
-      res.json(rows);
+      res.json(rows.map(castNumericStrings));
     })
   );
 
@@ -62,7 +83,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
         [req.params.id, req.userId]
       );
       if (!row) throw new ApiError(404, "Not found");
-      res.json(row);
+      res.json(castNumericStrings(row));
     })
   );
 
@@ -81,7 +102,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
          RETURNING *`,
         [req.userId, ...values]
       );
-      res.status(201).json(row);
+      res.status(201).json(row && castNumericStrings(row));
     })
   );
 
@@ -104,7 +125,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
         [req.params.id, req.userId, ...values]
       );
       if (!row) throw new ApiError(404, "Not found");
-      res.json(row);
+      res.json(castNumericStrings(row));
     })
   );
 
