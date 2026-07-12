@@ -129,26 +129,32 @@ analyticsRouter.get(
       monthExpenseMap.set(m.key, 0);
     }
 
-    // Recurring items: normalized monthly amount appears in every month in range.
-    // One-time items: only appear in the month they were recorded.
+    // Recurring items: normalized monthly amount only from the entry's month forward.
+    // One-time items: only in the month they were recorded.
     for (const i of rawIncome) {
       const converted = c(Number(i.amount), i.currency);
-      const monthly = normalize(converted, i.frequency);
       if (i.frequency === "one_time") {
         const key = new Date(i.date).toISOString().slice(0, 7);
         if (monthIncomeMap.has(key)) monthIncomeMap.set(key, monthIncomeMap.get(key)! + converted);
       } else {
-        for (const key of monthKeys) monthIncomeMap.set(key, monthIncomeMap.get(key)! + monthly);
+        const monthly = normalize(converted, i.frequency);
+        const startKey = new Date(i.date).toISOString().slice(0, 7);
+        for (const key of monthKeys) {
+          if (key >= startKey) monthIncomeMap.set(key, monthIncomeMap.get(key)! + monthly);
+        }
       }
     }
     for (const e of rawExpenses) {
       const converted = c(Number(e.amount), e.currency);
-      const monthly = normalize(converted, e.frequency);
       if (e.frequency === "one_time") {
         const key = new Date(e.date).toISOString().slice(0, 7);
         if (monthExpenseMap.has(key)) monthExpenseMap.set(key, monthExpenseMap.get(key)! + converted);
       } else {
-        for (const key of monthKeys) monthExpenseMap.set(key, monthExpenseMap.get(key)! + monthly);
+        const monthly = normalize(converted, e.frequency);
+        const startKey = new Date(e.date).toISOString().slice(0, 7);
+        for (const key of monthKeys) {
+          if (key >= startKey) monthExpenseMap.set(key, monthExpenseMap.get(key)! + monthly);
+        }
       }
     }
 
