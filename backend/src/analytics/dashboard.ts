@@ -130,7 +130,7 @@ analyticsRouter.get(
       : 0;
 
     const historyPoints = history.map((h) => ({
-      date: String(h.snapshot_date).slice(0, 10),
+      date: new Date(h.snapshot_date).toISOString().slice(0, 10),
       netWorth: Number(h.net_worth),
       totalAssets: 0,
       totalLiabilities: 0,

@@ -53,7 +53,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
           <p className="mb-4 text-sm font-medium text-slate-300">Net worth over time</p>
-          <NetWorthTimeline data={data.netWorthHistory} />
+          <NetWorthTimeline data={data.netWorthHistory} currency={displayCurrency} />
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
           <p className="mb-4 text-sm font-medium text-slate-300">Asset allocation</p>

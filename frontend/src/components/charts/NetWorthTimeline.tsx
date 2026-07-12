@@ -9,7 +9,13 @@ import {
 } from "recharts";
 import type { NetWorthPoint } from "../../types";
 
-export function NetWorthTimeline({ data }: { data: NetWorthPoint[] }) {
+const symbol = (c: string) =>
+  new Intl.NumberFormat(undefined, { style: "currency", currency: c, minimumFractionDigits: 0, maximumFractionDigits: 0 })
+    .formatToParts(0)
+    .find((p) => p.type === "currency")?.value ?? c;
+
+export function NetWorthTimeline({ data, currency }: { data: NetWorthPoint[]; currency: string }) {
+  const sym = symbol(currency);
   return (
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -30,12 +36,15 @@ export function NetWorthTimeline({ data }: { data: NetWorthPoint[] }) {
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+          tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`}
         />
         <Tooltip
           contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
           labelStyle={{ color: "#94a3b8" }}
-          formatter={(value) => [`$${Number(value).toLocaleString()}`, "Net worth"]}
+          formatter={(value) => [
+            `${sym}${Number(value).toLocaleString()}`,
+            "Net worth",
+          ]}
         />
         <Line
           type="monotone"
