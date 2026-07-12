@@ -1,21 +1,10 @@
 import { Router } from "express";
-import { query, queryOne } from "../db/pool.js";
+import { query } from "../db/pool.js";
 import { requireAuth } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/error.js";
 
 export const analyticsRouter = Router();
 analyticsRouter.use(requireAuth);
-
-interface SnapshotRow {
-  snapshot_date: string;
-  net_worth: string;
-}
-
-interface AllocationRow {
-  category: string;
-  value: string;
-  percent: string;
-}
 
 const FRANKFURTER_URL = "https://api.frankfurter.app/latest";
 
@@ -28,12 +17,7 @@ async function getRates(from: string): Promise<Record<string, number>> {
 
 function convert(amount: number, from: string, to: string, rates: Record<string, number>): number {
   if (from === to) return amount;
-  // rates are "1 from = X to" — but Frankfurter returns rates relative to `from`
-  // e.g. from=EUR => rates = { USD: 1.08, GBP: 0.86, CHF: 0.94 }
-  // To convert USD -> EUR: amount / rates.USD
-  // To convert EUR -> USD: amount * rates.USD
   if (from === Object.keys(rates)[0]) {
-    // from is the base currency of the rates response
     const rate = rates[to];
     return rate ? amount * rate : amount;
   }
@@ -41,15 +25,19 @@ function convert(amount: number, from: string, to: string, rates: Record<string,
   return rate ? amount / rate : amount;
 }
 
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
 analyticsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const userId = req.userId;
     const targetCurrency = String(req.query.currency ?? "EUR");
-
     const rates = await getRates(targetCurrency);
+    const c = (amt: number, cur: string) => convert(amt, cur, targetCurrency, rates);
 
-    // Fetch all raw data
+    // ── Raw data ──────────────────────────────────────────────
     const [rawAssets, rawInvestments, rawIncome, rawExpenses, history] = await Promise.all([
       query<{ current_value: string; currency: string; category: string; name: string }>(
         `SELECT current_value, currency, category, name FROM assets WHERE user_id = $1`,
@@ -59,98 +47,158 @@ analyticsRouter.get(
         `SELECT current_value, currency, type, asset_name, ticker FROM investments WHERE user_id = $1`,
         [userId]
       ),
-      query<{ amount: string; currency: string; frequency: string }>(
-        `SELECT amount, currency, frequency FROM income WHERE user_id = $1`,
+      query<{ amount: string; currency: string; frequency: string; category: string; date: string }>(
+        `SELECT amount, currency, frequency, category, date FROM income WHERE user_id = $1`,
         [userId]
       ),
-      query<{ amount: string; currency: string; frequency: string }>(
-        `SELECT amount, currency, frequency FROM expenses WHERE user_id = $1`,
+      query<{ amount: string; currency: string; frequency: string; category: string; date: string }>(
+        `SELECT amount, currency, frequency, category, date FROM expenses WHERE user_id = $1`,
         [userId]
       ),
-      query<SnapshotRow>(
+      query<{ snapshot_date: string; net_worth: string }>(
         `SELECT snapshot_date, net_worth FROM net_worth_snapshots
          WHERE user_id = $1 ORDER BY snapshot_date`,
         [userId]
       ),
     ]);
 
-    // Convert and sum assets
-    const totalAssets =
-      rawAssets.reduce((sum, a) => sum + convert(Number(a.current_value), a.currency, targetCurrency, rates), 0);
-
-    // Convert and sum investments
-    const investmentValue =
-      rawInvestments.reduce((sum, i) => sum + convert(Number(i.current_value), i.currency, targetCurrency, rates), 0);
-
+    // ── Totals ────────────────────────────────────────────────
+    const totalAssets = rawAssets.reduce((s, a) => s + c(Number(a.current_value), a.currency), 0);
+    const investmentValue = rawInvestments.reduce((s, i) => s + c(Number(i.current_value), i.currency), 0);
     const netWorth = totalAssets + investmentValue;
 
-    // Asset allocation (convert each to target currency)
+    // ── Asset allocation (by individual name) ─────────────────
     const allocMap = new Map<string, number>();
     for (const a of rawAssets) {
-      const converted = convert(Number(a.current_value), a.currency, targetCurrency, rates);
-      allocMap.set(a.name, (allocMap.get(a.name) ?? 0) + converted);
+      allocMap.set(a.name, (allocMap.get(a.name) ?? 0) + c(Number(a.current_value), a.currency));
     }
     for (const i of rawInvestments) {
-      const converted = convert(Number(i.current_value), i.currency, targetCurrency, rates);
       const label = i.ticker ? `${i.asset_name} (${i.ticker})` : i.asset_name;
-      allocMap.set(label, (allocMap.get(label) ?? 0) + converted);
+      allocMap.set(label, (allocMap.get(label) ?? 0) + c(Number(i.current_value), i.currency));
     }
     const totalAlloc = [...allocMap.values()].reduce((a, b) => a + b, 0);
-    const allocation = [...allocMap.entries()]
+    const assetAllocation = [...allocMap.entries()]
       .map(([category, amount]) => ({
         category,
-        value: Math.round(amount * 100) / 100,
-        percent: totalAlloc > 0 ? Math.round((amount / totalAlloc) * 1000) / 10 : 0,
+        value: round2(amount),
+        percent: totalAlloc > 0 ? round2((amount / totalAlloc) * 100) : 0,
       }))
       .sort((a, b) => b.value - a.value);
 
-    // Monthly income: normalize to monthly equivalent
-    const monthlyIncome = rawIncome.reduce((sum, i) => {
-      const converted = convert(Number(i.amount), i.currency, targetCurrency, rates);
-      switch (i.frequency) {
-        case "weekly":  return sum + converted * 4.33;
-        case "monthly": return sum + converted;
-        case "yearly":  return sum + converted / 12;
-        default:        return sum; // one_time — excluded from recurring monthly
+    // ── Monthly recurring totals (normalized) ─────────────────
+    const normalize = (amt: number, freq: string) => {
+      switch (freq) {
+        case "weekly":  return amt * 4.33;
+        case "monthly": return amt;
+        case "yearly":  return amt / 12;
+        default:        return 0; // one_time
       }
-    }, 0);
+    };
+    const monthlyIncome = rawIncome.reduce((s, i) => s + normalize(c(Number(i.amount), i.currency), i.frequency), 0);
+    const monthlyExpenses = rawExpenses.reduce((s, e) => s + normalize(c(Number(e.amount), e.currency), e.frequency), 0);
+    const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
 
-    // Monthly expenses: normalize to monthly equivalent
-    const monthlyExpenses = rawExpenses.reduce((sum, e) => {
-      const converted = convert(Number(e.amount), e.currency, targetCurrency, rates);
-      switch (e.frequency) {
-        case "weekly":  return sum + converted * 4.33;
-        case "monthly": return sum + converted;
-        case "yearly":  return sum + converted / 12;
-        default:        return sum; // one_time — excluded from recurring monthly
-      }
-    }, 0);
-
-    const savingsRate = monthlyIncome > 0
-      ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100
-      : 0;
-
-    const historyPoints = history.map((h) => ({
+    // ── Net worth history ─────────────────────────────────────
+    const netWorthHistory = history.map((h) => ({
       date: new Date(h.snapshot_date).toISOString().slice(0, 10),
       netWorth: Number(h.net_worth),
       totalAssets: 0,
       totalLiabilities: 0,
     }));
 
-    const firstNetWorth = historyPoints[0]?.netWorth ?? netWorth;
+    const firstNetWorth = netWorthHistory[0]?.netWorth ?? netWorth;
     const netWorthChangePercent =
       firstNetWorth !== 0 ? ((netWorth - firstNetWorth) / Math.abs(firstNetWorth)) * 100 : 0;
 
+    // ── Monthly income vs expenses (last 12 months, actual) ───
+    const months: { label: string; key: string }[] = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+      months.push({ label, key });
+    }
+
+    const monthIncomeMap = new Map<string, number>();
+    const monthExpenseMap = new Map<string, number>();
+    for (const m of months) {
+      monthIncomeMap.set(m.key, 0);
+      monthExpenseMap.set(m.key, 0);
+    }
+
+    for (const i of rawIncome) {
+      const d = new Date(i.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (monthIncomeMap.has(key)) {
+        monthIncomeMap.set(key, monthIncomeMap.get(key)! + c(Number(i.amount), i.currency));
+      }
+    }
+    for (const e of rawExpenses) {
+      const d = new Date(e.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (monthExpenseMap.has(key)) {
+        monthExpenseMap.set(key, monthExpenseMap.get(key)! + c(Number(e.amount), e.currency));
+      }
+    }
+
+    const monthlyIncomeVsExpenses = months.map((m) => ({
+      month: m.label,
+      income: round2(monthIncomeMap.get(m.key) ?? 0),
+      expenses: round2(monthExpenseMap.get(m.key) ?? 0),
+    }));
+
+    // ── Expense breakdown by category ─────────────────────────
+    const expenseCatMap = new Map<string, number>();
+    for (const e of rawExpenses) {
+      const converted = c(Number(e.amount), e.currency);
+      expenseCatMap.set(e.category, (expenseCatMap.get(e.category) ?? 0) + converted);
+    }
+    const totalExpenses = [...expenseCatMap.values()].reduce((a, b) => a + b, 0);
+    const expenseBreakdown = [...expenseCatMap.entries()]
+      .map(([category, amount]) => ({
+        category,
+        value: round2(amount),
+        percent: totalExpenses > 0 ? round2((amount / totalExpenses) * 100) : 0,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    // ── Investment breakdown by type ──────────────────────────
+    const invTypeMap = new Map<string, number>();
+    for (const i of rawInvestments) {
+      const converted = c(Number(i.current_value), i.currency);
+      invTypeMap.set(i.type, (invTypeMap.get(i.type) ?? 0) + converted);
+    }
+    const totalInv = [...invTypeMap.values()].reduce((a, b) => a + b, 0);
+    const investmentBreakdown = [...invTypeMap.entries()]
+      .map(([category, amount]) => ({
+        category,
+        value: round2(amount),
+        percent: totalInv > 0 ? round2((amount / totalInv) * 100) : 0,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    // ── Net worth composition over time (from snapshots) ──────
+    const netWorthComposition = history.map((h) => ({
+      date: new Date(h.snapshot_date).toISOString().slice(0, 10),
+      assets: 0,
+      investments: 0,
+    }));
+
     res.json({
-      netWorth,
-      netWorthChangePercent,
-      totalAssets,
-      investmentPortfolioValue: investmentValue,
-      monthlyIncome,
-      monthlyExpenses,
-      savingsRate,
-      assetAllocation: allocation,
-      netWorthHistory: historyPoints,
+      netWorth: round2(netWorth),
+      netWorthChangePercent: round2(netWorthChangePercent),
+      totalAssets: round2(totalAssets),
+      investmentPortfolioValue: round2(investmentValue),
+      monthlyIncome: round2(monthlyIncome),
+      monthlyExpenses: round2(monthlyExpenses),
+      savingsRate: round2(savingsRate),
+      assetAllocation,
+      netWorthHistory,
+      monthlyIncomeVsExpenses,
+      expenseBreakdown,
+      investmentBreakdown,
+      netWorthComposition,
     });
   })
 );

@@ -4,6 +4,10 @@ import type { DashboardSummary } from "../types";
 import { Card } from "../components/ui/Card";
 import { NetWorthTimeline } from "../components/charts/NetWorthTimeline";
 import { AssetAllocation } from "../components/charts/AssetAllocation";
+import { IncomeVsExpenses } from "../components/charts/IncomeVsExpenses";
+import { ExpenseBreakdown } from "../components/charts/ExpenseBreakdown";
+import { InvestmentBreakdown } from "../components/charts/InvestmentBreakdown";
+import { SavingsOverTime } from "../components/charts/SavingsOverTime";
 import { useCurrency } from "../context/CurrencyContext";
 
 export function Dashboard() {
@@ -58,6 +62,44 @@ export function Dashboard() {
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
           <p className="mb-4 text-sm font-medium text-slate-300">Asset allocation</p>
           <AssetAllocation data={data.assetAllocation} currency={displayCurrency} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+          <p className="mb-4 text-sm font-medium text-slate-300">Income vs expenses</p>
+          {data.monthlyIncomeVsExpenses.length > 0 ? (
+            <IncomeVsExpenses data={data.monthlyIncomeVsExpenses} currency={displayCurrency} />
+          ) : (
+            <p className="text-sm text-slate-500">No income or expense data yet.</p>
+          )}
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+          <p className="mb-4 text-sm font-medium text-slate-300">Expense breakdown</p>
+          {data.expenseBreakdown.length > 0 ? (
+            <ExpenseBreakdown data={data.expenseBreakdown} currency={displayCurrency} />
+          ) : (
+            <p className="text-sm text-slate-500">No expenses recorded yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+          <p className="mb-4 text-sm font-medium text-slate-300">Savings over time</p>
+          {data.monthlyIncomeVsExpenses.length > 0 ? (
+            <SavingsOverTime data={data.monthlyIncomeVsExpenses} currency={displayCurrency} />
+          ) : (
+            <p className="text-sm text-slate-500">No data yet.</p>
+          )}
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+          <p className="mb-4 text-sm font-medium text-slate-300">Investment portfolio</p>
+          {data.investmentBreakdown.length > 0 ? (
+            <InvestmentBreakdown data={data.investmentBreakdown} currency={displayCurrency} />
+          ) : (
+            <p className="text-sm text-slate-500">No investments tracked yet.</p>
+          )}
         </div>
       </div>
     </div>
