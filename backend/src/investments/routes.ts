@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createCrudRouter } from "../utils/crudRouter.js";
+import { upsertDailySnapshot } from "../snapshots/helpers.js";
 
 const type = z.enum(["stock", "etf", "crypto", "bond", "fund"]);
 
@@ -45,4 +46,5 @@ export const investmentsRouter = createCrudRouter({
   computedColumns,
   createSchema,
   updateSchema,
+  postMutation: upsertDailySnapshot,
 });

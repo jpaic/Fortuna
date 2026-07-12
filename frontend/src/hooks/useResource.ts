@@ -12,20 +12,25 @@ export function useResource<T extends { id: string }>(endpoint: string) {
     queryFn: async () => (await api.get<T[]>(`/${endpoint}`)).data,
   });
 
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: key });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+  };
+
   const create = useMutation({
     mutationFn: async (payload: Partial<T>) => (await api.post<T>(`/${endpoint}`, payload)).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
+    onSuccess: invalidateAll,
   });
 
   const update = useMutation({
     mutationFn: async ({ id, payload }: { id: string; payload: Partial<T> }) =>
       (await api.put<T>(`/${endpoint}/${id}`, payload)).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
+    onSuccess: invalidateAll,
   });
 
   const remove = useMutation({
     mutationFn: async (id: string) => (await api.delete(`/${endpoint}/${id}`)).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
+    onSuccess: invalidateAll,
   });
 
   return { list, create, update, remove };

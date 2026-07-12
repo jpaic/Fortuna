@@ -49,6 +49,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
   computedColumns?: ColumnMap;
   createSchema: z.ZodType<TCreate>;
   updateSchema: z.ZodType<Partial<TCreate>>;
+  postMutation?: (userId: string) => Promise<void>;
 }) {
   const router = Router();
   router.use(requireAuth);
@@ -93,6 +94,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
          RETURNING *`,
         [req.userId, ...values]
       );
+      if (config.postMutation) await config.postMutation(req.userId!);
       res.status(201).json(castRow(row));
     })
   );
@@ -116,6 +118,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
         [req.params.id, req.userId, ...values]
       );
       if (!row) throw new ApiError(404, "Not found");
+      if (config.postMutation) await config.postMutation(req.userId!);
       res.json(castRow(row));
     })
   );
@@ -128,6 +131,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
         [req.params.id, req.userId]
       );
       if (!row) throw new ApiError(404, "Not found");
+      if (config.postMutation) await config.postMutation(req.userId!);
       res.status(204).send();
     })
   );
