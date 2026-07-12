@@ -97,9 +97,10 @@ analyticsRouter.get(
     }
     const totalAlloc = [...allocMap.values()].reduce((a, b) => a + b, 0);
     const allocation = [...allocMap.entries()]
-      .map(([category, value]) => ({
+      .map(([category, amount]) => ({
         category,
-        value: totalAlloc > 0 ? Math.round((value / totalAlloc) * 1000) / 10 : 0,
+        value: Math.round(amount * 100) / 100,
+        percent: totalAlloc > 0 ? Math.round((amount / totalAlloc) * 1000) / 10 : 0,
       }))
       .sort((a, b) => b.value - a.value);
 

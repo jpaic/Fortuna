@@ -3,7 +3,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recha
 const COLORS = ["#34d399", "#60a5fa", "#fbbf24", "#f472b6", "#a78bfa", "#38bdf8"];
 
 interface Props {
-  data: { category: string; value: number }[];
+  data: { category: string; value: number; percent: number }[];
   currency?: string;
 }
 
@@ -16,8 +16,6 @@ const fmt = (n: number, c: string) =>
   }).format(n);
 
 export function AssetAllocation({ data, currency = "EUR" }: Props) {
-  const total = data.reduce((a, b) => a + b.value, 0);
-
   return (
     <ResponsiveContainer width="100%" height={280}>
       <PieChart>
@@ -35,25 +33,14 @@ export function AssetAllocation({ data, currency = "EUR" }: Props) {
         </Pie>
         <Tooltip
           contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-          formatter={(value, name) => [
-            `${fmt(Number(value), currency)} (${((Number(value) / total) * 100).toFixed(1)}%)`,
-            name,
-          ]}
+          formatter={(_value, _name, entry) => {
+            const d = entry.payload as Props["data"][number];
+            return [`${fmt(d.value, currency)} (${d.percent}%)`, d.category];
+          }}
         />
         <Legend
           verticalAlign="bottom"
-          formatter={(value, entry) => {
-            const payload = entry.payload as { value: number } | undefined;
-            const pct = payload ? ((payload.value / total) * 100).toFixed(1) : "0";
-            return (
-              <span className="text-slate-300">
-                {value}{" "}
-                <span className="text-slate-500">
-                  {payload ? `${fmt(payload.value, currency)} (${pct}%)` : ""}
-                </span>
-              </span>
-            );
-          }}
+          formatter={(value) => <span className="text-slate-300">{value}</span>}
         />
       </PieChart>
     </ResponsiveContainer>
