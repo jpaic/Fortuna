@@ -14,7 +14,17 @@ export function NetWorthTimeline({ data }: { data: NetWorthPoint[] }) {
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <CartesianGrid stroke="#1e293b" vertical={false} />
-        <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+        <XAxis
+          dataKey="date"
+          stroke="#64748b"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(d) => {
+            const dt = new Date(d + "T00:00:00");
+            return dt.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+          }}
+        />
         <YAxis
           stroke="#64748b"
           fontSize={12}
