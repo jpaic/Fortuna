@@ -57,7 +57,7 @@ export function Dashboard() {
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
           <p className="mb-4 text-sm font-medium text-slate-300">Asset allocation</p>
-          <AssetAllocation data={data.assetAllocation} />
+          <AssetAllocation data={data.assetAllocation} currency={displayCurrency} />
         </div>
       </div>
     </div>
