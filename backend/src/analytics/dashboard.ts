@@ -110,14 +110,16 @@ analyticsRouter.get(
     const netWorthChangePercent =
       firstNetWorth !== 0 ? ((netWorth - firstNetWorth) / Math.abs(firstNetWorth)) * 100 : 0;
 
-    // ── Monthly income vs expenses (last 12 months, actual) ───
+    // ── Monthly income vs expenses (last 12 months) ───────────
     const months: { label: string; key: string }[] = [];
     const now = new Date();
+    const monthKeys: string[] = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const label = d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
       months.push({ label, key });
+      monthKeys.push(key);
     }
 
     const monthIncomeMap = new Map<string, number>();
@@ -127,18 +129,26 @@ analyticsRouter.get(
       monthExpenseMap.set(m.key, 0);
     }
 
+    // Recurring items: normalized monthly amount appears in every month in range.
+    // One-time items: only appear in the month they were recorded.
     for (const i of rawIncome) {
-      const d = new Date(i.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      if (monthIncomeMap.has(key)) {
-        monthIncomeMap.set(key, monthIncomeMap.get(key)! + c(Number(i.amount), i.currency));
+      const converted = c(Number(i.amount), i.currency);
+      const monthly = normalize(converted, i.frequency);
+      if (i.frequency === "one_time") {
+        const key = new Date(i.date).toISOString().slice(0, 7);
+        if (monthIncomeMap.has(key)) monthIncomeMap.set(key, monthIncomeMap.get(key)! + converted);
+      } else {
+        for (const key of monthKeys) monthIncomeMap.set(key, monthIncomeMap.get(key)! + monthly);
       }
     }
     for (const e of rawExpenses) {
-      const d = new Date(e.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      if (monthExpenseMap.has(key)) {
-        monthExpenseMap.set(key, monthExpenseMap.get(key)! + c(Number(e.amount), e.currency));
+      const converted = c(Number(e.amount), e.currency);
+      const monthly = normalize(converted, e.frequency);
+      if (e.frequency === "one_time") {
+        const key = new Date(e.date).toISOString().slice(0, 7);
+        if (monthExpenseMap.has(key)) monthExpenseMap.set(key, monthExpenseMap.get(key)! + converted);
+      } else {
+        for (const key of monthKeys) monthExpenseMap.set(key, monthExpenseMap.get(key)! + monthly);
       }
     }
 
