@@ -255,6 +255,7 @@ export function Assets() {
             defaultValues={editing ? {
               name: editing.name,
               category: editing.category,
+              bankName: editing.bankName,
               purchaseValue: editing.purchaseValue,
               currentValue: editing.currentValue,
               currency: editing.currency,
