@@ -1,5 +1,7 @@
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { colorFor } from "../../lib/chartColors";
+import { ChartLegend } from "./ChartLegend";
+import { interleaved, tooltipStyle } from "./pieUtils";
 
 interface Props {
   data: { category: string; value: number; percent: number }[];
@@ -17,33 +19,34 @@ const fmt = (n: number, c: string) =>
 const labelize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function InvestmentBreakdown({ data, currency = "EUR" }: Props) {
+  const sorted = interleaved(data);
+
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <PieChart>
-        <Pie
-          data={data}
-          dataKey="value"
-          nameKey="category"
-          innerRadius={60}
-          outerRadius={100}
-          paddingAngle={2}
-        >
-          {data.map((entry) => (
-            <Cell key={entry.category} fill={colorFor(entry.category)} stroke="none" />
-          ))}
-        </Pie>
-        <Tooltip
-          contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-          formatter={(_value, _name, entry) => {
-            const d = entry.payload as Props["data"][number];
-            return [`${fmt(d.value, currency)} (${d.percent}%)`, labelize(d.category)];
-          }}
-        />
-        <Legend
-          verticalAlign="bottom"
-          formatter={(value) => <span className="text-slate-300">{labelize(value)}</span>}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+    <div className="flex flex-col">
+      <ResponsiveContainer width="100%" height={240}>
+        <PieChart>
+          <Pie
+            data={sorted}
+            dataKey="value"
+            nameKey="category"
+            innerRadius={55}
+            outerRadius={90}
+            paddingAngle={2}
+          >
+            {sorted.map((entry) => (
+              <Cell key={entry.category} fill={colorFor(entry.category)} stroke="none" />
+            ))}
+          </Pie>
+          <Tooltip
+            {...tooltipStyle}
+            formatter={(_value, _name, entry) => {
+              const d = entry.payload as Props["data"][number];
+              return [`${fmt(d.value, currency)} (${d.percent}%)`, labelize(d.category)];
+            }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <ChartLegend items={data} currency={currency} />
+    </div>
   );
 }
