@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, RefreshCw } from "lucide-react";
 import { useResource } from "../hooks/useResource";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "../lib/api";
 import type { Investment } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { InvestmentForm } from "../components/forms/InvestmentForm";
@@ -13,6 +15,21 @@ export function Investments() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Investment | null>(null);
   const { format, displayCurrency } = useCurrency();
+  const queryClient = useQueryClient();
+
+  const { data: priceStatus } = useQuery({
+    queryKey: ["price-status"],
+    queryFn: async () => (await api.get<{ lastUpdated: string | null; canRefresh: boolean; waitMinutes: number }>("/prices/status")).data,
+  });
+
+  const refreshMutation = useMutation({
+    mutationFn: async () => (await api.post("/prices/refresh")).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["price-status"] });
+      queryClient.invalidateQueries({ queryKey: ["investments"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    },
+  });
 
   async function handleSubmit(data: InvestmentInput) {
     if (editing) {
@@ -43,12 +60,31 @@ export function Investments() {
           <h1 className="text-2xl font-semibold text-white">Investments</h1>
           <p className="text-sm text-slate-400">Portfolio performance across all holdings.</p>
         </div>
-        <button
-          onClick={() => { setEditing(null); setShowForm(true); }}
-          className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400"
-        >
-          <Plus size={16} /> Add investment
-        </button>
+        <div className="flex items-center gap-3">
+          {priceStatus?.lastUpdated && (
+            <span className="text-xs text-slate-500">
+              Updated {new Date(priceStatus.lastUpdated).toLocaleString()}
+            </span>
+          )}
+          <button
+            onClick={() => refreshMutation.mutate()}
+            disabled={refreshMutation.isPending || !priceStatus?.canRefresh}
+            className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 hover:border-slate-600 hover:text-white disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={refreshMutation.isPending ? "animate-spin" : ""} />
+            {refreshMutation.isPending
+              ? "Refreshing…"
+              : priceStatus?.canRefresh
+                ? "Refresh prices"
+                : `Wait ${priceStatus?.waitMinutes ?? 0}m`}
+          </button>
+          <button
+            onClick={() => { setEditing(null); setShowForm(true); }}
+            className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400"
+          >
+            <Plus size={16} /> Add investment
+          </button>
+        </div>
       </div>
 
       {holdings.length > 0 && (

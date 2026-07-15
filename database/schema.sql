@@ -299,3 +299,19 @@ CREATE INDEX idx_net_worth_snapshots_user_date ON net_worth_snapshots (user_id, 
 ALTER TABLE assets
   ALTER COLUMN purchase_value TYPE DECIMAL(24, 8),
   ALTER COLUMN current_value  TYPE DECIMAL(24, 8);
+
+-- 013_expenses_frequency_and_asset_cleanup.sql
+
+ALTER TABLE expenses
+  ADD COLUMN frequency VARCHAR(20) NOT NULL DEFAULT 'one_time'
+  CHECK (frequency IN ('one_time', 'weekly', 'monthly', 'yearly'));
+
+ALTER TABLE assets
+  DROP CONSTRAINT IF EXISTS assets_category_check,
+  ADD CONSTRAINT assets_category_check
+    CHECK (category IN ('cash', 'real_estate', 'vehicle', 'other'));
+
+-- 014_add_price_last_updated.sql
+
+ALTER TABLE investments
+  ADD COLUMN price_last_updated TIMESTAMPTZ;

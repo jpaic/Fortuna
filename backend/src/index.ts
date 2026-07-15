@@ -15,6 +15,8 @@ import { investmentsRouter } from "./investments/routes.js";
 import { incomeRouter } from "./income/routes.js";
 import { expensesRouter } from "./expenses/routes.js";
 import { analyticsRouter } from "./analytics/dashboard.js";
+import { snapshotsRouter } from "./snapshots/routes.js";
+import { pricesRouter } from "./prices/routes.js";
 import { errorHandler } from "./middleware/error.js";
 import { asyncHandler } from "./middleware/error.js";
 import { requireAuth } from "./middleware/auth.js";
@@ -47,6 +49,8 @@ app.use("/api/assets", assetsRouter);
 app.use("/api/investments", investmentsRouter);
 app.use("/api/income", incomeRouter);
 app.use("/api/expenses", expensesRouter);
+app.use("/api/snapshots", snapshotsRouter);
+app.use("/api/prices", pricesRouter);
 app.use("/api/dashboard", analyticsRouter);
 
 const CURRENCIES = "EUR,USD,GBP,CHF";

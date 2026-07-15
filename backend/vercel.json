@@ -4,8 +4,17 @@
   "functions": {
     "api/index.js": {
       "includeFiles": "dist/**"
+    },
+    "api/cron/prices.js": {
+      "includeFiles": "dist/**"
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/prices",
+      "schedule": "0 6 * * *"
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" }
   ]
