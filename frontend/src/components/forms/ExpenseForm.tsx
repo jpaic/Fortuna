@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { expenseSchema, type ExpenseFormValues, type ExpenseInput } from "../../lib/schemas";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/api";
+import { assetDisplayName } from "../../lib/assetDisplayName";
 import type { Asset } from "../../types";
 
 const CATEGORIES = [
@@ -116,7 +117,7 @@ export function ExpenseForm({
               .filter((a) => a.category === "cash" || a.category === "bank")
               .map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.category === "bank" && a.bankName ? `${a.bankName} – ${a.name}` : a.name}
+                  {assetDisplayName(a)}
                 </option>
               ))}
           </select>

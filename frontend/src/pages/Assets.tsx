@@ -3,6 +3,7 @@ import { Plus, Trash2, Pencil, ChevronDown, ChevronRight } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
+import { assetDisplayName } from "../lib/assetDisplayName";
 import type { Asset } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { AssetForm } from "../components/forms/AssetForm";
@@ -53,7 +54,7 @@ function AssetRow({
             className="flex items-center gap-2 text-left hover:text-white transition-colors"
           >
             {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            {asset.name}
+            {assetDisplayName(asset)}
           </button>
         </td>
         <td className="px-4 py-3 capitalize text-slate-400">

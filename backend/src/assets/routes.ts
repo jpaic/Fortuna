@@ -5,7 +5,7 @@ import { upsertAssetHistory } from "./helpers.js";
 
 const category = z.enum(["cash", "bank", "real_estate", "vehicle", "other"]);
 
-const createSchema = z.object({
+const createBase = z.object({
   name: z.string().min(1),
   category,
   bankName: z.string().optional(),
@@ -16,7 +16,12 @@ const createSchema = z.object({
   notes: z.string().optional(),
 });
 
-const updateSchema = createSchema.partial();
+const createSchema = createBase.refine(
+  (data) => data.category !== "bank" || (data.bankName && data.bankName.length > 0),
+  { message: "Bank name is required for bank accounts", path: ["bankName"] }
+);
+
+const updateSchema = createBase.partial();
 
 // Maps request body keys (camelCase) to actual database columns (snake_case)
 const columns = {

@@ -31,7 +31,10 @@ export const assetSchema = z.object({
   currency: z.string().length(3, "Use a 3-letter currency code"),
   purchaseDate: z.string().min(1),
   notes: z.string().optional(),
-});
+}).refine(
+  (data) => data.category !== "bank" || (data.bankName && data.bankName.length > 0),
+  { message: "Bank name is required for bank accounts", path: ["bankName"] }
+);
 
 export const investmentSchema = z.object({
   assetName: z.string().min(1, "Name is required"),

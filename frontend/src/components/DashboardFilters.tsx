@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Filter, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
+import { assetDisplayName } from "../lib/assetDisplayName";
 import type { Asset } from "../types";
 import { useDashboardFilters } from "../context/FilterContext";
 
@@ -88,7 +89,7 @@ export function DashboardFilters() {
   const totalActive =
     excludeAssets.length + excludeInvTypes.length + excludeIncomeCats.length + excludeExpenseCats.length;
 
-  const assetItems = (assets ?? []).map((a) => ({ id: a.id, name: a.name }));
+  const assetItems = (assets ?? []).map((a) => ({ id: a.id, name: assetDisplayName(a) }));
   const invTypeItems = INV_TYPES.map((t) => ({ id: t, name: labelize(t) }));
   const incomeItems = INCOME_CATS.map((c) => ({ id: c, name: labelize(c) }));
   const expenseItems = EXPENSE_CATS.map((c) => ({ id: c, name: labelize(c) }));

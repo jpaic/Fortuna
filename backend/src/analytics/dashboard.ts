@@ -53,8 +53,8 @@ analyticsRouter.get(
 
     // ── Raw data ──────────────────────────────────────────────
     const [rawAssets, rawInvestments, rawIncome, rawExpenses, history] = await Promise.all([
-      query<{ id: string; current_value: string; currency: string; category: string; name: string }>(
-        `SELECT id, current_value, currency, category, name FROM assets WHERE user_id = $1`,
+      query<{ id: string; current_value: string; currency: string; category: string; name: string; bank_name: string | null }>(
+        `SELECT id, current_value, currency, category, name, bank_name FROM assets WHERE user_id = $1`,
         [userId]
       ),
       query<{ current_value: string; currency: string; type: string; asset_name: string; ticker: string }>(
@@ -90,7 +90,8 @@ analyticsRouter.get(
     // ── Asset allocation (by individual name) ─────────────────
     const allocMap = new Map<string, number>();
     for (const a of fAssets) {
-      allocMap.set(a.name, (allocMap.get(a.name) ?? 0) + c(Number(a.current_value), a.currency));
+      const label = a.category === "bank" && a.bank_name ? `${a.bank_name} – ${a.name}` : a.name;
+      allocMap.set(label, (allocMap.get(label) ?? 0) + c(Number(a.current_value), a.currency));
     }
     for (const i of fInvestments) {
       const label = i.ticker ? `${i.asset_name} (${i.ticker})` : i.asset_name;
