@@ -71,6 +71,18 @@ export function AssetForm({
         </select>
       </div>
 
+      {category === "bank" && (
+        <div>
+          <label className="mb-1 block text-sm text-slate-400">Bank name</label>
+          <input
+            {...register("bankName")}
+            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+            placeholder="Chase, Revolut, Wise, …"
+          />
+          {errors.bankName && <p className="mt-1 text-xs text-rose-400">{errors.bankName.message}</p>}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="mb-1 block text-sm text-slate-400">

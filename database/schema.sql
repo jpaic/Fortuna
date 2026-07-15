@@ -81,7 +81,8 @@ CREATE TABLE assets (
   user_id         UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   name            VARCHAR(255) NOT NULL,
   category        VARCHAR(30) NOT NULL
-                  CHECK (category IN ('cash', 'real_estate', 'vehicle', 'other')),
+                  CHECK (category IN ('cash', 'bank', 'real_estate', 'vehicle', 'other')),
+  bank_name       VARCHAR(255),
   purchase_value  DECIMAL(24, 8) NOT NULL CHECK (purchase_value >= 0),
   current_value   DECIMAL(24, 8) NOT NULL CHECK (current_value >= 0),
   currency        CHAR(3) NOT NULL DEFAULT 'USD',
@@ -338,3 +339,7 @@ ALTER TABLE assets
   DROP CONSTRAINT IF EXISTS assets_category_check,
   ADD CONSTRAINT assets_category_check
     CHECK (category IN ('cash', 'bank', 'real_estate', 'vehicle', 'other'));
+
+-- 017_add_bank_name_to_assets.sql
+
+ALTER TABLE assets ADD COLUMN bank_name VARCHAR(255);

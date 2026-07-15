@@ -116,7 +116,7 @@ export function ExpenseForm({
               .filter((a) => a.category === "cash" || a.category === "bank")
               .map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name}
+                  {a.category === "bank" && a.bankName ? `${a.bankName} – ${a.name}` : a.name}
                 </option>
               ))}
           </select>

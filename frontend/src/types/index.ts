@@ -14,6 +14,7 @@ export interface Asset {
   userId: string;
   name: string;
   category: AssetCategory;
+  bankName?: string;
   purchaseValue: number;
   currentValue: number;
   currency: string;

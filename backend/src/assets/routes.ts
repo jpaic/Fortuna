@@ -8,6 +8,7 @@ const category = z.enum(["cash", "bank", "real_estate", "vehicle", "other"]);
 const createSchema = z.object({
   name: z.string().min(1),
   category,
+  bankName: z.string().optional(),
   purchaseValue: z.number().min(0),
   currentValue: z.number().min(0),
   currency: z.string().length(3).default("EUR"),
@@ -21,6 +22,7 @@ const updateSchema = createSchema.partial();
 const columns = {
   name: "name",
   category: "category",
+  bankName: "bank_name",
   purchaseValue: "purchase_value",
   currentValue: "current_value",
   currency: "currency",
