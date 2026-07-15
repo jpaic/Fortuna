@@ -1,7 +1,7 @@
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
-import { colorFor } from "../../lib/chartColors";
+import { colorForExpense } from "../../lib/chartColors";
 import { ChartLegend } from "./ChartLegend";
-import { interleaved, tooltipStyle } from "./pieUtils";
+import { sortedDonut, tooltipStyle } from "./pieUtils";
 
 interface Props {
   data: { category: string; value: number; percent: number }[];
@@ -19,7 +19,7 @@ const fmt = (n: number, c: string) =>
 const labelize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
 export function ExpenseBreakdown({ data, currency = "EUR" }: Props) {
-  const sorted = interleaved(data);
+  const sorted = sortedDonut(data);
 
   return (
     <div className="flex flex-col">
@@ -34,7 +34,7 @@ export function ExpenseBreakdown({ data, currency = "EUR" }: Props) {
             paddingAngle={2}
           >
             {sorted.map((entry) => (
-              <Cell key={entry.category} fill={colorFor(entry.category)} stroke="none" />
+              <Cell key={entry.category} fill={colorForExpense(entry.category)} stroke="none" />
             ))}
           </Pie>
           <Tooltip
@@ -46,7 +46,10 @@ export function ExpenseBreakdown({ data, currency = "EUR" }: Props) {
           />
         </PieChart>
       </ResponsiveContainer>
-      <ChartLegend items={data} currency={currency} />
+      <ChartLegend
+        items={sorted.map((d) => ({ ...d, color: colorForExpense(d.category) }))}
+        currency={currency}
+      />
     </div>
   );
 }

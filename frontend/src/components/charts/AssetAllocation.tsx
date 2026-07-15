@@ -1,7 +1,7 @@
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
-import { colorFor } from "../../lib/chartColors";
+import { colorForItem } from "../../lib/chartColors";
 import { ChartLegend } from "./ChartLegend";
-import { interleaved, tooltipStyle } from "./pieUtils";
+import { sortedDonut, tooltipStyle } from "./pieUtils";
 
 interface Props {
   data: { category: string; value: number; percent: number }[];
@@ -17,7 +17,8 @@ const fmt = (n: number, c: string) =>
   }).format(n);
 
 export function AssetAllocation({ data, currency = "EUR" }: Props) {
-  const sorted = interleaved(data);
+  const sorted = sortedDonut(data);
+  const colorFor = (name: string) => colorForItem("asset-allocation", name);
 
   return (
     <div className="flex flex-col">
@@ -44,7 +45,10 @@ export function AssetAllocation({ data, currency = "EUR" }: Props) {
           />
         </PieChart>
       </ResponsiveContainer>
-      <ChartLegend items={data} currency={currency} />
+      <ChartLegend
+        items={sorted.map((d) => ({ ...d, color: colorFor(d.category) }))}
+        currency={currency}
+      />
     </div>
   );
 }

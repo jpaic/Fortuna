@@ -1,9 +1,8 @@
-import { colorFor } from "../../lib/chartColors";
-
 interface LegendItem {
   category: string;
   value: number;
   percent: number;
+  color: string;
 }
 
 const MAX_LEN = 22;
@@ -37,7 +36,7 @@ export function ChartLegend({
         >
           <span
             className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: colorFor(item.category) }}
+            style={{ backgroundColor: item.color }}
           />
           <span className="truncate max-w-[160px]">{truncate(item.category)}</span>
           <span className="text-slate-500 whitespace-nowrap">
