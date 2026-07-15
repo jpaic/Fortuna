@@ -18,9 +18,9 @@ function setRefreshCookie(res: import("express").Response, token: string) {
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
     secure: isProd,
-    sameSite: "strict",
+    sameSite: "none",
     path: "/api/auth",
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    maxAge: 2 * 60 * 60 * 1000, // 2 hours
   });
 }
 

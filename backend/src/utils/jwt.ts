@@ -3,7 +3,7 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 const ACCESS_SECRET = process.env.JWT_SECRET!;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
 const ACCESS_EXPIRES_IN = (process.env.JWT_ACCESS_EXPIRES_IN ?? "15m") as SignOptions["expiresIn"];
-const REFRESH_EXPIRES_IN = (process.env.JWT_REFRESH_EXPIRES_IN ?? "30d") as SignOptions["expiresIn"];
+const REFRESH_EXPIRES_IN = (process.env.JWT_REFRESH_EXPIRES_IN ?? "2h") as SignOptions["expiresIn"];
 
 export interface AccessTokenPayload {
   user_id: string;
