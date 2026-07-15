@@ -16,6 +16,29 @@ const symbol = (c: string) =>
 
 export function NetWorthTimeline({ data, currency }: { data: NetWorthPoint[]; currency: string }) {
   const sym = symbol(currency);
+  const values = data.map((d) => d.netWorth);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+  const mean = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+
+  // If range is small relative to mean (< 5%), zoom in on the Y-axis
+  const tightScale = mean > 0 && range / mean < 0.05;
+
+  const yTickFormatter = (v: number) => {
+    if (tightScale) {
+      // Show full number with commas
+      return `${sym}${v.toLocaleString()}`;
+    }
+    // Default: show in k
+    return `${sym}${(v / 1000).toFixed(0)}k`;
+  };
+
+  // Compute Y-axis domain for tight scale
+  const yDomain = tightScale
+    ? [Math.max(0, min - range * 0.3), max + range * 0.3]
+    : undefined;
+
   return (
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -36,13 +59,15 @@ export function NetWorthTimeline({ data, currency }: { data: NetWorthPoint[]; cu
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`}
+          domain={yDomain}
+          tickFormatter={yTickFormatter}
+          width={tightScale ? 80 : 55}
         />
         <Tooltip
           contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
           labelStyle={{ color: "#94a3b8" }}
           formatter={(value) => [
-            `${sym}${Number(value).toLocaleString()}`,
+            `${sym}${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             "Net worth",
           ]}
         />

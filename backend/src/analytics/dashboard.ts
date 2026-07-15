@@ -164,11 +164,12 @@ analyticsRouter.get(
       expenses: round2(monthExpenseMap.get(m.key) ?? 0),
     }));
 
-    // ── Expense breakdown by category ─────────────────────────
+    // ── Expense breakdown by category (normalized to monthly) ─
     const expenseCatMap = new Map<string, number>();
     for (const e of rawExpenses) {
       const converted = c(Number(e.amount), e.currency);
-      expenseCatMap.set(e.category, (expenseCatMap.get(e.category) ?? 0) + converted);
+      const monthly = normalize(converted, e.frequency);
+      expenseCatMap.set(e.category, (expenseCatMap.get(e.category) ?? 0) + monthly);
     }
     const totalExpenses = [...expenseCatMap.values()].reduce((a, b) => a + b, 0);
     const expenseBreakdown = [...expenseCatMap.entries()]
