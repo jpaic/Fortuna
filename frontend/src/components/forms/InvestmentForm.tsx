@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { investmentSchema, type InvestmentFormValues, type InvestmentInput } from "../../lib/schemas";
+import { api } from "../../lib/api";
 
 const TYPES = ["stock", "etf", "crypto", "bond", "fund"] as const;
 
@@ -22,11 +24,40 @@ export function InvestmentForm({
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<InvestmentFormValues, unknown, InvestmentInput>({
     resolver: zodResolver(investmentSchema),
     defaultValues: { currency: displayCurrency ?? "EUR", type: "stock", ...defaultValues },
   });
+
+  const ticker = watch("ticker");
+  const type = watch("type");
+  const currency = watch("currency");
+  const [fetching, setFetching] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (!ticker || !type) return;
+
+    timerRef.current = setTimeout(async () => {
+      setFetching(true);
+      try {
+        const { data } = await api.get<{ price: number }>("/prices/quote", {
+          params: { ticker: ticker.toUpperCase(), type, currency },
+        });
+        setValue("currentPrice", data.price, { shouldValidate: true });
+      } catch {
+        // price not found — leave field empty for manual entry
+      } finally {
+        setFetching(false);
+      }
+    }, 500);
+
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [ticker, type, currency, setValue]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -74,7 +105,15 @@ export function InvestmentForm({
         </div>
         <div>
           <label className={labelClass}>Current price</label>
-          <input type="number" step="any" {...register("currentPrice")} className={inputClass} />
+          <input
+            type="number"
+            step="any"
+            {...register("currentPrice")}
+            className={`${inputClass} ${fetching ? "animate-pulse" : ""}`}
+            readOnly
+            tabIndex={-1}
+          />
+          {fetching && <p className="mt-1 text-xs text-slate-500">Fetching price…</p>}
         </div>
       </div>
 

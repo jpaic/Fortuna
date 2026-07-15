@@ -90,6 +90,19 @@ async function fetchCoinGeckoPrice(
   }
 }
 
+// ── Single ticker lookup (used by the investment form) ───────
+export async function fetchSinglePrice(
+  ticker: string,
+  type: string,
+  currency: string
+): Promise<number | null> {
+  if (type === "crypto") {
+    const coinId = CRYPTO_MAP[ticker.toUpperCase()] ?? ticker.toLowerCase();
+    return fetchCoinGeckoPrice(coinId, currency);
+  }
+  return fetchYahooPrice(ticker, currency);
+}
+
 // ── Batch fetch: fetch all prices for a user's investments ───
 interface InvestmentRow {
   id: string;
