@@ -309,7 +309,7 @@ ALTER TABLE expenses
 ALTER TABLE assets
   DROP CONSTRAINT IF EXISTS assets_category_check,
   ADD CONSTRAINT assets_category_check
-    CHECK (category IN ('cash', 'real_estate', 'vehicle', 'other'));
+    CHECK (category IN ('cash', 'bank', 'real_estate', 'vehicle', 'other'));
 
 -- 014_add_price_last_updated.sql
 
@@ -331,3 +331,10 @@ CREATE TABLE asset_value_history (
 
 CREATE INDEX idx_asset_value_history_asset ON asset_value_history (asset_id, recorded_date);
 CREATE INDEX idx_asset_value_history_user ON asset_value_history (user_id, recorded_date);
+
+-- 016_add_bank_asset_category.sql
+
+ALTER TABLE assets
+  DROP CONSTRAINT IF EXISTS assets_category_check,
+  ADD CONSTRAINT assets_category_check
+    CHECK (category IN ('cash', 'bank', 'real_estate', 'vehicle', 'other'));

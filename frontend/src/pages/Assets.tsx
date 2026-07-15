@@ -27,7 +27,7 @@ function AssetRow({
   format: (value: number, currency: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const isCash = asset.category === "cash";
+  const isCash = asset.category === "cash" || asset.category === "bank";
 
   const { data: history } = useQuery<AssetHistoryPoint[]>({
     queryKey: ["asset-history", asset.id],

@@ -3,7 +3,7 @@ import { createCrudRouter } from "../utils/crudRouter.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "./helpers.js";
 
-const category = z.enum(["cash", "real_estate", "vehicle", "other"]);
+const category = z.enum(["cash", "bank", "real_estate", "vehicle", "other"]);
 
 const createSchema = z.object({
   name: z.string().min(1),

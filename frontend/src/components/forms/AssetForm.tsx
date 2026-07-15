@@ -2,10 +2,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { assetSchema, type AssetFormValues, type AssetInput } from "../../lib/schemas";
 
-const CATEGORIES = ["cash", "real_estate", "vehicle", "other"] as const;
+const CATEGORIES = ["cash", "bank", "real_estate", "vehicle", "other"] as const;
 
 const CATEGORY_LABELS: Record<string, string> = {
-  cash: "Cash & bank accounts",
+  cash: "Cash",
+  bank: "Bank account",
   real_estate: "Real estate",
   vehicle: "Vehicle",
   other: "Other",
@@ -33,13 +34,13 @@ export function AssetForm({
   });
 
   const category = watch("category");
-  const isCash = category === "cash";
+  const isCashLike = category === "cash" || category === "bank";
 
   function handleValid(data: Record<string, unknown>) {
     const d = data as { purchaseValue: number; currentValue?: number };
     const payload: AssetInput = {
       ...(data as AssetInput),
-      currentValue: isCash ? d.purchaseValue : Number(d.currentValue ?? 0),
+      currentValue: isCashLike ? d.purchaseValue : Number(d.currentValue ?? 0),
     };
     onSubmit(payload);
   }
@@ -51,7 +52,7 @@ export function AssetForm({
         <input
           {...register("name")}
           className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-          placeholder={isCash ? "Chase Checking, Revolut Wallet, …" : "Rental Condo, Honda Civic, …"}
+          placeholder={isCashLike ? "Chase Checking, Revolut Wallet, …" : "Rental Condo, Honda Civic, …"}
         />
         {errors.name && <p className="mt-1 text-xs text-rose-400">{errors.name.message}</p>}
       </div>
@@ -73,7 +74,7 @@ export function AssetForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="mb-1 block text-sm text-slate-400">
-            {isCash ? "Balance" : "Purchase value"}
+            {isCashLike ? "Balance" : "Purchase value"}
           </label>
           <input
             type="number"
@@ -85,7 +86,7 @@ export function AssetForm({
             <p className="mt-1 text-xs text-rose-400">{errors.purchaseValue.message}</p>
           )}
         </div>
-        {!isCash && (
+        {!isCashLike && (
           <div>
             <label className="mb-1 block text-sm text-slate-400">Current value</label>
             <input
@@ -115,7 +116,7 @@ export function AssetForm({
         </div>
         <div>
           <label className="mb-1 block text-sm text-slate-400">
-            {isCash ? "Date opened" : "Purchase date"}
+            {isCashLike ? "Date opened" : "Purchase date"}
           </label>
           <input
             type="date"

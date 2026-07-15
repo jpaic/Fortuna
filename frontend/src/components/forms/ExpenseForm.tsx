@@ -107,13 +107,13 @@ export function ExpenseForm({
         )}
       </div>
 
-      {!isRecurring && cashAssets && cashAssets.filter((a) => a.category === "cash").length > 0 && (
+      {!isRecurring && cashAssets && cashAssets.filter((a) => a.category === "cash" || a.category === "bank").length > 0 && (
         <div>
           <label className={labelClass}>Pay from asset (optional)</label>
           <select {...register("assetId")} className={inputClass}>
             <option value="">None</option>
             {cashAssets
-              .filter((a) => a.category === "cash")
+              .filter((a) => a.category === "cash" || a.category === "bank")
               .map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}

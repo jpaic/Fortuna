@@ -24,6 +24,7 @@ export interface Asset {
 
 export type AssetCategory =
   | "cash"
+  | "bank"
   | "real_estate"
   | "vehicle"
   | "other";
