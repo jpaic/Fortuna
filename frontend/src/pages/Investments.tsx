@@ -45,11 +45,13 @@ function InvestmentRow({
 
   function ChangeBadge({ data }: { data: PriceChange | null }) {
     if (!data) return <span className="text-slate-500">—</span>;
-    const isPositive = data.change >= 0;
+    const qty = Number(inv.quantity);
+    const holdingChange = data.change * qty;
+    const isPositive = holdingChange >= 0;
     return (
       <span className={isPositive ? "text-emerald-400" : "text-rose-400"}>
         {isPositive ? "+" : ""}
-        {format(data.change, inv.currency)} ({isPositive ? "+" : ""}
+        {format(holdingChange, inv.currency)} ({isPositive ? "+" : ""}
         {data.changePercent.toFixed(1)}%)
       </span>
     );

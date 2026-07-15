@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createCrudRouter } from "../utils/crudRouter.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
+import { upsertAssetHistory } from "./helpers.js";
 
 const category = z.enum(["cash", "real_estate", "vehicle", "other"]);
 
@@ -32,5 +33,8 @@ export const assetsRouter = createCrudRouter({
   columns,
   createSchema,
   updateSchema,
-  postMutation: upsertDailySnapshot,
+  postMutation: async (userId, row) => {
+    await upsertDailySnapshot(userId);
+    await upsertAssetHistory(userId, row);
+  },
 });

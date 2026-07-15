@@ -11,6 +11,7 @@ const rateLimitFn = rateLimit as unknown as (...args: unknown[]) => express.Hand
 import { authRouter } from "./auth/routes.js";
 import { usersRouter } from "./users/routes.js";
 import { assetsRouter } from "./assets/routes.js";
+import { assetHistoryRouter } from "./assets/historyRoutes.js";
 import { investmentsRouter } from "./investments/routes.js";
 import { incomeRouter } from "./income/routes.js";
 import { expensesRouter } from "./expenses/routes.js";
@@ -46,6 +47,7 @@ const authLimiter = rateLimitFn({
 app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/assets", assetsRouter);
+app.use("/api/assets/history", assetHistoryRouter);
 app.use("/api/investments", investmentsRouter);
 app.use("/api/income", incomeRouter);
 app.use("/api/expenses", expensesRouter);

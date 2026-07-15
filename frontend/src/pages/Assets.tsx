@@ -1,11 +1,176 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, ChevronDown, ChevronRight } from "lucide-react";
 import { useResource } from "../hooks/useResource";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../lib/api";
 import type { Asset } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { AssetForm } from "../components/forms/AssetForm";
 import type { AssetInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+
+interface AssetHistoryPoint {
+  date: string;
+  value: number;
+}
+
+function AssetRow({
+  asset,
+  onEdit,
+  onRemove,
+  format,
+}: {
+  asset: Asset;
+  onEdit: (a: Asset) => void;
+  onRemove: (id: string) => void;
+  format: (value: number, currency: string) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const isCash = asset.category === "cash";
+
+  const { data: history } = useQuery<AssetHistoryPoint[]>({
+    queryKey: ["asset-history", asset.id],
+    queryFn: async () =>
+      (await api.get("/assets/history", { params: { assetId: asset.id } })).data,
+    enabled: expanded,
+    staleTime: 5 * 60_000,
+  });
+
+  const firstVal = history && history.length > 0 ? history[0].value : null;
+  const lastVal = history && history.length > 0 ? history[history.length - 1].value : null;
+  const totalChange = firstVal != null && lastVal != null ? lastVal - firstVal : null;
+  const totalChangePct = firstVal && firstVal !== 0 && totalChange != null
+    ? (totalChange / firstVal) * 100
+    : null;
+
+  return (
+    <>
+      <tr className="text-slate-200">
+        <td className="px-4 py-3">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-2 text-left hover:text-white transition-colors"
+          >
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {asset.name}
+          </button>
+        </td>
+        <td className="px-4 py-3 capitalize text-slate-400">
+          {asset.category.replace("_", " ")}
+        </td>
+        <td className="px-4 py-3">
+          {format(asset.purchaseValue, asset.currency)}
+        </td>
+        <td className="px-4 py-3 text-slate-400">
+          {isCash ? "—" : format(asset.currentValue, asset.currency)}
+        </td>
+        <td className="px-4 py-3 text-right">
+          <button onClick={() => onEdit(asset)} className="text-slate-500 hover:text-emerald-400 mr-2">
+            <Pencil size={16} />
+          </button>
+          <button onClick={() => onRemove(asset.id)} className="text-slate-500 hover:text-rose-400">
+            <Trash2 size={16} />
+          </button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={5} className="px-4 pb-3">
+            <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+              <div className="grid grid-cols-4 gap-4 text-sm mb-4">
+                <div>
+                  <p className="text-slate-500 mb-1">Purchase value</p>
+                  <p className="text-white font-medium">{format(asset.purchaseValue, asset.currency)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500 mb-1">Current value</p>
+                  <p className="text-white font-medium">
+                    {isCash ? format(asset.purchaseValue, asset.currency) : format(asset.currentValue, asset.currency)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-500 mb-1">Change</p>
+                  {totalChange != null ? (
+                    <p className={`font-medium ${totalChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {totalChange >= 0 ? "+" : ""}{format(totalChange, asset.currency)}
+                    </p>
+                  ) : (
+                    <p className="text-slate-500">—</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-slate-500 mb-1">Change %</p>
+                  {totalChangePct != null ? (
+                    <p className={`font-medium ${totalChangePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {totalChangePct >= 0 ? "+" : ""}{totalChangePct.toFixed(1)}%
+                    </p>
+                  ) : (
+                    <p className="text-slate-500">—</p>
+                  )}
+                </div>
+              </div>
+
+              {history && history.length > 1 && (
+                <div className="pt-3 border-t border-slate-800">
+                  <p className="text-xs text-slate-500 mb-2">Value over time</p>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <LineChart data={history}>
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(d: string) => {
+                          const date = new Date(d + "T00:00:00");
+                          return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+                        }}
+                        tick={{ fill: "#64748b", fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tickFormatter={(v: number) => format(v, asset.currency).replace(/[\d.,]/g, "")}
+                        tick={{ fill: "#64748b", fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={40}
+                      />
+                      <Tooltip
+                        formatter={(value) => format(Number(value), asset.currency)}
+                        labelFormatter={(label) => {
+                          const d = String(label);
+                          return new Date(d + "T00:00:00").toLocaleDateString();
+                        }}
+                        contentStyle={{
+                          backgroundColor: "#1e293b",
+                          border: "1px solid #334155",
+                          borderRadius: "8px",
+                          fontSize: 12,
+                        }}
+                        labelStyle={{ color: "#94a3b8" }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {history && history.length <= 1 && (
+                <p className="pt-3 border-t border-slate-800 text-xs text-slate-500">
+                  Value history will appear here as you update this asset.
+                </p>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
 
 export function Assets() {
   const { list, create, update, remove } = useResource<Asset>("assets");
@@ -61,26 +226,13 @@ export function Assets() {
           </thead>
           <tbody className="divide-y divide-slate-800">
             {list.data?.map((asset) => (
-              <tr key={asset.id} className="text-slate-200">
-                <td className="px-4 py-3">{asset.name}</td>
-                <td className="px-4 py-3 capitalize text-slate-400">
-                  {asset.category.replace("_", " ")}
-                </td>
-                <td className="px-4 py-3">
-                  {format(asset.purchaseValue, asset.currency)}
-                </td>
-                <td className="px-4 py-3 text-slate-400">
-                  {asset.category === "cash" ? "—" : format(asset.currentValue, asset.currency)}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => openEdit(asset)} className="text-slate-500 hover:text-emerald-400 mr-2">
-                    <Pencil size={16} />
-                  </button>
-                  <button onClick={() => remove.mutate(asset.id)} className="text-slate-500 hover:text-rose-400">
-                    <Trash2 size={16} />
-                  </button>
-                </td>
-              </tr>
+              <AssetRow
+                key={asset.id}
+                asset={asset}
+                onEdit={openEdit}
+                onRemove={(id) => remove.mutate(id)}
+                format={format}
+              />
             ))}
             {list.data?.length === 0 && (
               <tr>
