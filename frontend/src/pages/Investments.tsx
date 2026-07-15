@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Pencil, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
@@ -9,6 +9,139 @@ import { InvestmentForm } from "../components/forms/InvestmentForm";
 import { InvestmentPerformance } from "../components/charts/InvestmentPerformance";
 import type { InvestmentInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
+
+interface PriceChange {
+  change: number;
+  changePercent: number;
+  currentPrice: number;
+  previousPrice: number;
+}
+
+interface PriceHistory {
+  daily: PriceChange | null;
+  weekly: PriceChange | null;
+  monthly: PriceChange | null;
+}
+
+function InvestmentRow({
+  inv,
+  onEdit,
+  onRemove,
+  format,
+}: {
+  inv: Investment;
+  onEdit: (inv: Investment) => void;
+  onRemove: (id: string) => void;
+  format: (value: number, currency: string) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const { data: history } = useQuery<PriceHistory>({
+    queryKey: ["price-history", inv.ticker, inv.type, inv.currency],
+    queryFn: async () =>
+      (await api.get("/prices/history", { params: { ticker: inv.ticker, type: inv.type, currency: inv.currency } })).data,
+    enabled: expanded && !!inv.ticker,
+    staleTime: 5 * 60_000,
+  });
+
+  function ChangeBadge({ data }: { data: PriceChange | null }) {
+    if (!data) return <span className="text-slate-500">—</span>;
+    const isPositive = data.change >= 0;
+    return (
+      <span className={isPositive ? "text-emerald-400" : "text-rose-400"}>
+        {isPositive ? "+" : ""}
+        {format(data.change, inv.currency)} ({isPositive ? "+" : ""}
+        {data.changePercent.toFixed(1)}%)
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <tr className="text-slate-200">
+        <td className="px-4 py-3">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-2 text-left hover:text-white transition-colors"
+          >
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {inv.assetName}
+            {inv.ticker && <span className="text-slate-500">({inv.ticker})</span>}
+          </button>
+        </td>
+        <td className="px-4 py-3">{Number(inv.quantity)}</td>
+        <td className="px-4 py-3">{format(inv.averageBuyPrice, inv.currency)}</td>
+        <td className="px-4 py-3">{format(inv.currentPrice, inv.currency)}</td>
+        <td className="px-4 py-3">{format(inv.currentValue, inv.currency)}</td>
+        <td className={`px-4 py-3 ${Number(inv.profitLoss) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+          {Number(inv.profitLoss) >= 0 ? "+" : ""}
+          {format(inv.profitLoss, inv.currency)}
+        </td>
+        <td className={`px-4 py-3 ${Number(inv.roiPercent) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+          {Number(inv.roiPercent).toFixed(1)}%
+        </td>
+        <td className="px-4 py-3 text-right">
+          <button onClick={() => onEdit(inv)} className="text-slate-500 hover:text-emerald-400 mr-2">
+            <Pencil size={16} />
+          </button>
+          <button onClick={() => onRemove(inv.id)} className="text-slate-500 hover:text-rose-400">
+            <Trash2 size={16} />
+          </button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={8} className="px-4 pb-3">
+            <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+              <div className="grid grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-slate-500 mb-1">Total invested</p>
+                  <p className="text-white font-medium">{format(Number(inv.averageBuyPrice) * Number(inv.quantity), inv.currency)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500 mb-1">Current value</p>
+                  <p className="text-white font-medium">{format(inv.currentValue, inv.currency)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500 mb-1">Total P/L</p>
+                  <p className={`font-medium ${Number(inv.profitLoss) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {Number(inv.profitLoss) >= 0 ? "+" : ""}
+                    {format(inv.profitLoss, inv.currency)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-500 mb-1">ROI</p>
+                  <p className={`font-medium ${Number(inv.roiPercent) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {Number(inv.roiPercent) >= 0 ? "+" : ""}
+                    {Number(inv.roiPercent).toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+              {inv.ticker && (
+                <div className="mt-3 pt-3 border-t border-slate-800">
+                  <p className="text-xs text-slate-500 mb-2">Price performance</p>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-slate-500 mb-1">24h</p>
+                      <ChangeBadge data={history?.daily ?? null} />
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-1">7d</p>
+                      <ChangeBadge data={history?.weekly ?? null} />
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-1">30d</p>
+                      <ChangeBadge data={history?.monthly ?? null} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
 
 export function Investments() {
   const { list, create, update, remove } = useResource<Investment>("investments");
@@ -110,30 +243,13 @@ export function Investments() {
           </thead>
           <tbody className="divide-y divide-slate-800">
             {holdings.map((inv) => (
-              <tr key={inv.id} className="text-slate-200">
-                <td className="px-4 py-3">
-                  {inv.assetName} {inv.ticker && <span className="text-slate-500">({inv.ticker})</span>}
-                </td>
-                <td className="px-4 py-3">{Number(inv.quantity)}</td>
-                <td className="px-4 py-3">{format(inv.averageBuyPrice, inv.currency)}</td>
-                <td className="px-4 py-3">{format(inv.currentPrice, inv.currency)}</td>
-                <td className="px-4 py-3">{format(inv.currentValue, inv.currency)}</td>
-                <td className={`px-4 py-3 ${Number(inv.profitLoss) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                  {Number(inv.profitLoss) >= 0 ? "+" : ""}
-                  {format(inv.profitLoss, inv.currency)}
-                </td>
-                <td className={`px-4 py-3 ${Number(inv.roiPercent) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                  {Number(inv.roiPercent).toFixed(1)}%
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => openEdit(inv)} className="text-slate-500 hover:text-emerald-400 mr-2">
-                    <Pencil size={16} />
-                  </button>
-                  <button onClick={() => remove.mutate(inv.id)} className="text-slate-500 hover:text-rose-400">
-                    <Trash2 size={16} />
-                  </button>
-                </td>
-              </tr>
+              <InvestmentRow
+                key={inv.id}
+                inv={inv}
+                onEdit={openEdit}
+                onRemove={(id) => remove.mutate(id)}
+                format={format}
+              />
             ))}
             {holdings.length === 0 && (
               <tr>

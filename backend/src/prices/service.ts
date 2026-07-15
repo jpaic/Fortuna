@@ -103,6 +103,122 @@ export async function fetchSinglePrice(
   return fetchYahooPrice(ticker, currency);
 }
 
+// ── Price history: daily / weekly / monthly changes ──────────
+export interface PriceChange {
+  change: number;
+  changePercent: number;
+  currentPrice: number;
+  previousPrice: number;
+}
+
+export interface PriceHistory {
+  daily: PriceChange | null;
+  weekly: PriceChange | null;
+  monthly: PriceChange | null;
+}
+
+async function fetchYahooHistory(
+  ticker: string,
+  currency: string
+): Promise<PriceHistory> {
+  const headers = { "User-Agent": "Mozilla/5.0" };
+
+  async function getRange(range: string): Promise<number | null> {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=${range}`;
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) return null;
+    const data = (await resp.json()) as {
+      chart?: { result?: [{ indicators?: { quote?: [{ close?: (number | null)[] }] }; timestamp?: number[] }] };
+    };
+    const closes = data.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+    if (!closes || closes.length < 2) return null;
+    for (let i = closes.length - 1; i >= 0; i--) {
+      if (closes[i] != null) return closes[i];
+    }
+    return null;
+  }
+
+  const currentPrice = await getRange("1d");
+  if (currentPrice == null) return { daily: null, weekly: null, monthly: null };
+
+  const d1 = await getRange("5d");
+  const w1 = await getRange("1mo");
+  const m1 = await getRange("3mo");
+
+  const cur = currentPrice!;
+
+  function makeChange(past: number | null): PriceChange | null {
+    if (past == null || past === 0) return null;
+    const change = cur - past;
+    return {
+      change,
+      changePercent: (change / past) * 100,
+      currentPrice: cur,
+      previousPrice: past,
+    };
+  }
+
+  return { daily: makeChange(d1), weekly: makeChange(w1), monthly: makeChange(m1) };
+}
+
+async function fetchCoinGeckoHistory(
+  coinId: string,
+  currency: string
+): Promise<PriceHistory> {
+  try {
+    const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=${currency.toLowerCase()}&days=90`;
+    const resp = await fetch(url);
+    if (!resp.ok) return { daily: null, weekly: null, monthly: null };
+    const data = (await resp.json()) as { prices: [number, number][] };
+
+    const prices = data.prices;
+    if (!prices || prices.length < 2) return { daily: null, weekly: null, monthly: null };
+
+    const currentPrice = prices[prices.length - 1][1];
+    const now = Date.now();
+
+    function findPriceAt(agoMs: number): number | null {
+      const target = now - agoMs;
+      let best = prices[0];
+      for (const p of prices) {
+        if (Math.abs(p[0] - target) < Math.abs(best[0] - target)) best = p;
+      }
+      return best[1];
+    }
+
+    function makeChange(past: number | null): PriceChange | null {
+      if (past == null || past === 0) return null;
+      const change = currentPrice - past;
+      return {
+        change,
+        changePercent: (change / past) * 100,
+        currentPrice,
+        previousPrice: past,
+      };
+    }
+
+    return {
+      daily: makeChange(findPriceAt(86_400_000)),
+      weekly: makeChange(findPriceAt(7 * 86_400_000)),
+      monthly: makeChange(findPriceAt(30 * 86_400_000)),
+    };
+  } catch {
+    return { daily: null, weekly: null, monthly: null };
+  }
+}
+
+export async function fetchPriceHistory(
+  ticker: string,
+  type: string,
+  currency: string
+): Promise<PriceHistory> {
+  if (type === "crypto") {
+    const coinId = CRYPTO_MAP[ticker.toUpperCase()] ?? ticker.toLowerCase();
+    return fetchCoinGeckoHistory(coinId, currency);
+  }
+  return fetchYahooHistory(ticker, currency);
+}
+
 // ── Batch fetch: fetch all prices for a user's investments ───
 interface InvestmentRow {
   id: string;
