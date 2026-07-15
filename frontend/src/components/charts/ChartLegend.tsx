@@ -1,3 +1,5 @@
+import { DONUT_TRANSITION_MS } from "./pieUtils";
+
 interface LegendItem {
   category: string;
   value: number;
@@ -28,22 +30,35 @@ export function ChartLegend({
 }) {
   return (
     <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 px-2 pt-2">
-      {items.map((item) => (
-        <div
-          key={item.category}
-          className="flex items-center gap-1.5 text-xs text-slate-400"
-          title={`${item.category} — ${fmt(item.value, currency)} (${item.percent}%)`}
-        >
-          <span
-            className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: item.color }}
-          />
-          <span className="truncate max-w-[160px]">{truncate(item.category)}</span>
-          <span className="text-slate-500 whitespace-nowrap">
-            {fmt(item.value, currency)}
-          </span>
-        </div>
-      ))}
+      {items.map((item) => {
+        // useSmoothDonutData briefly reports value 0 for items that are
+        // being removed (about to be dropped) or just added (about to
+        // grow) — fade/scale the legend entry in step with the pie
+        // slice shrinking/growing instead of popping in or out.
+        const isHidden = item.value === 0;
+        return (
+          <div
+            key={item.category}
+            className="flex items-center gap-1.5 text-xs text-slate-400 transition-all ease-out"
+            style={{
+              transitionDuration: `${DONUT_TRANSITION_MS}ms`,
+              opacity: isHidden ? 0 : 1,
+              transform: isHidden ? "scale(0.9)" : "scale(1)",
+              pointerEvents: isHidden ? "none" : "auto",
+            }}
+            title={`${item.category} — ${fmt(item.value, currency)} (${item.percent}%)`}
+          >
+            <span
+              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="truncate max-w-[160px]">{truncate(item.category)}</span>
+            <span className="text-slate-500 whitespace-nowrap">
+              {fmt(item.value, currency)}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

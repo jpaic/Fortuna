@@ -1,7 +1,7 @@
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, matchByDataKey } from "recharts";
 import { colorForExpense } from "../../lib/chartColors";
 import { ChartLegend } from "./ChartLegend";
-import { sortedDonut, tooltipStyle } from "./pieUtils";
+import { sortedDonut, tooltipStyle, useSmoothDonutData, DONUT_TRANSITION_MS } from "./pieUtils";
 
 interface Props {
   data: { category: string; value: number; percent: number }[];
@@ -19,7 +19,8 @@ const fmt = (n: number, c: string) =>
 const labelize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
 export function ExpenseBreakdown({ data, currency = "EUR" }: Props) {
-  const sorted = sortedDonut(data);
+  const smoothed = useSmoothDonutData(data);
+  const sorted = sortedDonut(smoothed);
 
   return (
     <div className="flex flex-col">
@@ -32,6 +33,11 @@ export function ExpenseBreakdown({ data, currency = "EUR" }: Props) {
             innerRadius={55}
             outerRadius={90}
             paddingAngle={2}
+            isAnimationActive
+            animationBegin={0}
+            animationDuration={DONUT_TRANSITION_MS}
+            animationEasing="ease-out"
+            animationMatchBy={matchByDataKey("category")}
           >
             {sorted.map((entry) => (
               <Cell key={entry.category} fill={colorForExpense(entry.category)} stroke="none" />
