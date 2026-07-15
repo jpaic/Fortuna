@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import type { DashboardSummary } from "../types";
 import { Card } from "../components/ui/Card";
@@ -21,7 +21,7 @@ function DashboardContent() {
   const excludeIncomeCats = filters.excludeIncomeCats.length > 0 ? filters.excludeIncomeCats.join(",") : undefined;
   const excludeExpenseCats = filters.excludeExpenseCats.length > 0 ? filters.excludeExpenseCats.join(",") : undefined;
 
-  const { data, isLoading } = useQuery({
+  const { data, isPending } = useQuery({
     queryKey: [
       "dashboard-summary", displayCurrency,
       excludeAssets, excludeInvTypes, excludeIncomeCats, excludeExpenseCats,
@@ -36,6 +36,7 @@ function DashboardContent() {
           ...(excludeExpenseCats && { excludeExpenseCats }),
         },
       })).data,
+    placeholderData: keepPreviousData,
   });
 
   const fmt = (n: number) =>
@@ -46,7 +47,7 @@ function DashboardContent() {
       maximumFractionDigits: 0,
     });
 
-  if (isLoading || !data) {
+  if (isPending || !data) {
     return <p className="text-slate-400">Loading dashboard…</p>;
   }
 

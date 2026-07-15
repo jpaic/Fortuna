@@ -1,6 +1,5 @@
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
-
-const COLORS = ["#34d399", "#60a5fa", "#fbbf24", "#f472b6", "#a78bfa", "#38bdf8"];
+import { colorFor } from "../../lib/chartColors";
 
 interface Props {
   data: { category: string; value: number; percent: number }[];
@@ -27,8 +26,8 @@ export function AssetAllocation({ data, currency = "EUR" }: Props) {
           outerRadius={100}
           paddingAngle={2}
         >
-          {data.map((_, i) => (
-            <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="none" />
+          {data.map((entry) => (
+            <Cell key={entry.category} fill={colorFor(entry.category)} stroke="none" />
           ))}
         </Pie>
         <Tooltip
