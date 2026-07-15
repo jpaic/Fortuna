@@ -29,18 +29,32 @@ function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+function parseList(val: unknown): string[] {
+  if (!val) return [];
+  const s = String(val).trim();
+  if (!s) return [];
+  return s.split(",").map((v) => v.trim()).filter(Boolean);
+}
+
 analyticsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const userId = req.userId;
     const targetCurrency = String(req.query.currency ?? "EUR");
+
+    // Parse exclude filters
+    const excludeAssets = parseList(req.query.excludeAssets);
+    const excludeInvTypes = parseList(req.query.excludeInvTypes);
+    const excludeIncomeCats = parseList(req.query.excludeIncomeCats);
+    const excludeExpenseCats = parseList(req.query.excludeExpenseCats);
+
     const rates = await getRates(targetCurrency);
     const c = (amt: number, cur: string) => convert(amt, cur, targetCurrency, rates);
 
     // ── Raw data ──────────────────────────────────────────────
     const [rawAssets, rawInvestments, rawIncome, rawExpenses, history] = await Promise.all([
-      query<{ current_value: string; currency: string; category: string; name: string }>(
-        `SELECT current_value, currency, category, name FROM assets WHERE user_id = $1`,
+      query<{ id: string; current_value: string; currency: string; category: string; name: string }>(
+        `SELECT id, current_value, currency, category, name FROM assets WHERE user_id = $1`,
         [userId]
       ),
       query<{ current_value: string; currency: string; type: string; asset_name: string; ticker: string }>(
@@ -62,17 +76,23 @@ analyticsRouter.get(
       ),
     ]);
 
+    // ── Apply exclude filters ─────────────────────────────────
+    const fAssets = rawAssets.filter((a) => !excludeAssets.includes(a.id));
+    const fInvestments = rawInvestments.filter((i) => !excludeInvTypes.includes(i.type));
+    const fIncome = rawIncome.filter((i) => !excludeIncomeCats.includes(i.category));
+    const fExpenses = rawExpenses.filter((e) => !excludeExpenseCats.includes(e.category));
+
     // ── Totals ────────────────────────────────────────────────
-    const totalAssets = rawAssets.reduce((s, a) => s + c(Number(a.current_value), a.currency), 0);
-    const investmentValue = rawInvestments.reduce((s, i) => s + c(Number(i.current_value), i.currency), 0);
+    const totalAssets = fAssets.reduce((s, a) => s + c(Number(a.current_value), a.currency), 0);
+    const investmentValue = fInvestments.reduce((s, i) => s + c(Number(i.current_value), i.currency), 0);
     const netWorth = totalAssets + investmentValue;
 
     // ── Asset allocation (by individual name) ─────────────────
     const allocMap = new Map<string, number>();
-    for (const a of rawAssets) {
+    for (const a of fAssets) {
       allocMap.set(a.name, (allocMap.get(a.name) ?? 0) + c(Number(a.current_value), a.currency));
     }
-    for (const i of rawInvestments) {
+    for (const i of fInvestments) {
       const label = i.ticker ? `${i.asset_name} (${i.ticker})` : i.asset_name;
       allocMap.set(label, (allocMap.get(label) ?? 0) + c(Number(i.current_value), i.currency));
     }
@@ -94,8 +114,8 @@ analyticsRouter.get(
         default:        return 0; // one_time
       }
     };
-    const monthlyIncome = rawIncome.reduce((s, i) => s + normalize(c(Number(i.amount), i.currency), i.frequency), 0);
-    const monthlyExpenses = rawExpenses.reduce((s, e) => s + normalize(c(Number(e.amount), e.currency), e.frequency), 0);
+    const monthlyIncome = fIncome.reduce((s, i) => s + normalize(c(Number(i.amount), i.currency), i.frequency), 0);
+    const monthlyExpenses = fExpenses.reduce((s, e) => s + normalize(c(Number(e.amount), e.currency), e.frequency), 0);
     const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
 
     // ── Net worth history ─────────────────────────────────────
@@ -129,9 +149,7 @@ analyticsRouter.get(
       monthExpenseMap.set(m.key, 0);
     }
 
-    // Recurring items: normalized monthly amount only from the entry's month forward.
-    // One-time items: only in the month they were recorded.
-    for (const i of rawIncome) {
+    for (const i of fIncome) {
       const converted = c(Number(i.amount), i.currency);
       if (i.frequency === "one_time") {
         const key = new Date(i.date).toISOString().slice(0, 7);
@@ -144,7 +162,7 @@ analyticsRouter.get(
         }
       }
     }
-    for (const e of rawExpenses) {
+    for (const e of fExpenses) {
       const converted = c(Number(e.amount), e.currency);
       if (e.frequency === "one_time") {
         const key = new Date(e.date).toISOString().slice(0, 7);
@@ -166,7 +184,7 @@ analyticsRouter.get(
 
     // ── Expense breakdown by category (normalized to monthly) ─
     const expenseCatMap = new Map<string, number>();
-    for (const e of rawExpenses) {
+    for (const e of fExpenses) {
       const converted = c(Number(e.amount), e.currency);
       const monthly = normalize(converted, e.frequency);
       expenseCatMap.set(e.category, (expenseCatMap.get(e.category) ?? 0) + monthly);
@@ -182,7 +200,7 @@ analyticsRouter.get(
 
     // ── Investment breakdown by type ──────────────────────────
     const invTypeMap = new Map<string, number>();
-    for (const i of rawInvestments) {
+    for (const i of fInvestments) {
       const converted = c(Number(i.current_value), i.currency);
       invTypeMap.set(i.type, (invTypeMap.get(i.type) ?? 0) + converted);
     }

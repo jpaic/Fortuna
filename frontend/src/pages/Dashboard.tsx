@@ -9,14 +9,33 @@ import { ExpenseBreakdown } from "../components/charts/ExpenseBreakdown";
 import { InvestmentBreakdown } from "../components/charts/InvestmentBreakdown";
 import { SavingsOverTime } from "../components/charts/SavingsOverTime";
 import { useCurrency } from "../context/CurrencyContext";
+import { useDashboardFilters, FilterProvider } from "../context/FilterContext";
+import { DashboardFilters } from "../components/DashboardFilters";
 
-export function Dashboard() {
+function DashboardContent() {
   const { displayCurrency } = useCurrency();
+  const filters = useDashboardFilters();
+
+  const excludeAssets = filters.excludeAssets.length > 0 ? filters.excludeAssets.join(",") : undefined;
+  const excludeInvTypes = filters.excludeInvTypes.length > 0 ? filters.excludeInvTypes.join(",") : undefined;
+  const excludeIncomeCats = filters.excludeIncomeCats.length > 0 ? filters.excludeIncomeCats.join(",") : undefined;
+  const excludeExpenseCats = filters.excludeExpenseCats.length > 0 ? filters.excludeExpenseCats.join(",") : undefined;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-summary", displayCurrency],
+    queryKey: [
+      "dashboard-summary", displayCurrency,
+      excludeAssets, excludeInvTypes, excludeIncomeCats, excludeExpenseCats,
+    ],
     queryFn: async () =>
-      (await api.get<DashboardSummary>("/dashboard", { params: { currency: displayCurrency } })).data,
+      (await api.get<DashboardSummary>("/dashboard", {
+        params: {
+          currency: displayCurrency,
+          ...(excludeAssets && { excludeAssets }),
+          ...(excludeInvTypes && { excludeInvTypes }),
+          ...(excludeIncomeCats && { excludeIncomeCats }),
+          ...(excludeExpenseCats && { excludeExpenseCats }),
+        },
+      })).data,
   });
 
   const fmt = (n: number) =>
@@ -37,6 +56,8 @@ export function Dashboard() {
         <h1 className="text-2xl font-semibold text-white">Overview</h1>
         <p className="text-sm text-slate-400">Your finances at a glance.</p>
       </div>
+
+      <DashboardFilters />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card
@@ -103,5 +124,13 @@ export function Dashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+export function Dashboard() {
+  return (
+    <FilterProvider>
+      <DashboardContent />
+    </FilterProvider>
   );
 }
