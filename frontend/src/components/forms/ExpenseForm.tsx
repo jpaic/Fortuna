@@ -1,6 +1,9 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { expenseSchema, type ExpenseFormValues, type ExpenseInput } from "../../lib/schemas";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../../lib/api";
+import type { Asset } from "../../types";
 
 const CATEGORIES = [
   "housing",
@@ -46,6 +49,12 @@ export function ExpenseForm({
 
   const frequency = watch("frequency");
   const isRecurring = frequency !== "one_time";
+
+  const { data: cashAssets } = useQuery<Asset[]>({
+    queryKey: ["assets"],
+    queryFn: async () => (await api.get("/assets")).data,
+    enabled: !isRecurring,
+  });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -97,6 +106,23 @@ export function ExpenseForm({
           </div>
         )}
       </div>
+
+      {!isRecurring && cashAssets && cashAssets.filter((a) => a.category === "cash").length > 0 && (
+        <div>
+          <label className={labelClass}>Pay from asset (optional)</label>
+          <select {...register("assetId")} className={inputClass}>
+            <option value="">None</option>
+            {cashAssets
+              .filter((a) => a.category === "cash")
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">Deduct this expense from a cash/banking asset</p>
+        </div>
+      )}
 
       <div>
         <label className={labelClass}>Notes</label>

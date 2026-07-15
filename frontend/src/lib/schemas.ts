@@ -52,6 +52,7 @@ export const incomeSchema = z.object({
   frequency: z.enum(["one_time", "weekly", "monthly", "yearly"]),
   date: z.string().min(1),
   notes: z.string().optional(),
+  assetId: z.string().optional(),
 });
 
 export const expenseSchema = z.object({
@@ -70,6 +71,7 @@ export const expenseSchema = z.object({
   frequency: z.enum(["one_time", "weekly", "monthly", "yearly"]).default("one_time"),
   date: z.string().min(1),
   notes: z.string().optional(),
+  assetId: z.string().optional(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

@@ -15,6 +15,7 @@ export function useResource<T extends { id: string }>(endpoint: string) {
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: key });
     queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    queryClient.invalidateQueries({ queryKey: ["assets"] });
   };
 
   const create = useMutation({

@@ -1,6 +1,9 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { incomeSchema, type IncomeFormValues, type IncomeInput } from "../../lib/schemas";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../../lib/api";
+import type { Asset } from "../../types";
 
 const CATEGORIES = ["salary", "freelance", "dividends", "rental", "other"] as const;
 const FREQUENCIES = ["one_time", "weekly", "monthly", "yearly"] as const;
@@ -32,6 +35,12 @@ export function IncomeForm({
 
   const frequency = watch("frequency");
   const isRecurring = frequency !== "one_time";
+
+  const { data: cashAssets } = useQuery<Asset[]>({
+    queryKey: ["assets"],
+    queryFn: async () => (await api.get("/assets")).data,
+    enabled: !isRecurring,
+  });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -85,6 +94,23 @@ export function IncomeForm({
           </div>
         )}
       </div>
+
+      {!isRecurring && cashAssets && cashAssets.filter((a) => a.category === "cash").length > 0 && (
+        <div>
+          <label className={labelClass}>Deposit to asset (optional)</label>
+          <select {...register("assetId")} className={inputClass}>
+            <option value="">None</option>
+            {cashAssets
+              .filter((a) => a.category === "cash")
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">Add this income to a cash/banking asset</p>
+        </div>
+      )}
 
       <div>
         <label className={labelClass}>Notes</label>

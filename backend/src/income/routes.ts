@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { createCrudRouter } from "../utils/crudRouter.js";
+import { query, queryOne } from "../db/pool.js";
+import { upsertDailySnapshot } from "../snapshots/helpers.js";
+import { upsertAssetHistory } from "../assets/helpers.js";
 
 const category = z.enum(["salary", "freelance", "dividends", "rental", "other"]);
 const frequency = z.enum(["one_time", "weekly", "monthly", "yearly"]);
@@ -12,6 +15,7 @@ const createSchema = z.object({
   frequency: frequency.default("monthly"),
   date: z.string(),
   notes: z.string().optional(),
+  assetId: z.string().uuid().optional(),
 });
 
 const updateSchema = createSchema.partial();
@@ -26,9 +30,36 @@ const columns = {
   notes: "notes",
 };
 
+async function handleAssetAddition(userId: string, input: Record<string, unknown>) {
+  const assetId = input.assetId as string | undefined;
+  const frequency = input.frequency as string | undefined;
+  const amount = Number(input.amount ?? 0);
+
+  if (!assetId || frequency !== "one_time" || amount <= 0) return;
+
+  const asset = await queryOne<{ id: string; current_value: number; category: string }>(
+    `SELECT id, current_value, category FROM assets WHERE id = $1 AND user_id = $2`,
+    [assetId, userId]
+  );
+  if (!asset) return;
+
+  const newVal = Number(asset.current_value) + amount;
+
+  await query(
+    `UPDATE assets SET current_value = $1 WHERE id = $2`,
+    [newVal, assetId]
+  );
+
+  await upsertDailySnapshot(userId);
+  await upsertAssetHistory(userId, { id: assetId, current_value: newVal });
+}
+
 export const incomeRouter = createCrudRouter({
   table: "income",
   columns,
   createSchema,
   updateSchema,
+  postMutation: async (userId, _row, input) => {
+    await handleAssetAddition(userId, input ?? {});
+  },
 });
