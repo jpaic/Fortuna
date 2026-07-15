@@ -12,14 +12,15 @@ import {
 export const authRouter = Router();
 
 const REFRESH_COOKIE = "refresh_token";
-const isProd = process.env.NODE_ENV === "production";
+const isVercel = !!process.env.VERCEL;
+const isSecure = isVercel || process.env.NODE_ENV === "production";
 
 function setRefreshCookie(res: import("express").Response, token: string) {
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
-    secure: isProd,
-    sameSite: "none",
-    path: "/api/auth",
+    secure: isSecure,
+    sameSite: isSecure ? "none" : "lax",
+    path: "/",
     maxAge: 2 * 60 * 60 * 1000, // 2 hours
   });
 }
@@ -61,7 +62,11 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const token = req.cookies?.[REFRESH_COOKIE];
     if (token) await authService.logout(token);
-    res.clearCookie(REFRESH_COOKIE, { path: "/api/auth" });
+    res.clearCookie(REFRESH_COOKIE, {
+      path: "/",
+      sameSite: isSecure ? "none" : "lax",
+      secure: isSecure,
+    });
     res.status(204).send();
   })
 );
