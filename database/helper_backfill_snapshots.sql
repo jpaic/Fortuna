@@ -1,16 +1,12 @@
--- Helper script: Backfill net_worth_snapshots monthly to earliest asset purchase date
+-- Helper script: Backfill net_worth_snapshots monthly with chronological accumulation
 -- Run once then delete
 
 -- !! SET YOUR USER ID HERE !!
 
--- Find earliest purchase date
--- SELECT MIN(purchase_date) FROM assets WHERE user_id = 'YOUR_USER_ID_HERE';
--- SELECT MIN(purchase_date) FROM investments WHERE user_id = 'YOUR_USER_ID_HERE';
+-- Step 1: Delete existing snapshots
+DELETE FROM net_worth_snapshots WHERE user_id = 'YOUR_USER_ID_HERE';
 
--- Backfill: insert one snapshot per month from earliest purchase to today
--- Uses the CURRENT total assets+investments value for all historical months
--- (approximation — better than nothing for the chart)
-
+-- Step 2: Backfill monthly — each month only includes assets/investments purchased on or before that month
 INSERT INTO net_worth_snapshots (user_id, snapshot_date, total_assets, total_liabilities)
 WITH months AS (
   SELECT generate_series(
@@ -22,23 +18,32 @@ WITH months AS (
     )),
     date_trunc('month', CURRENT_DATE),
     '1 month'::interval
-  )::date AS month_date
+  )::date AS month_start
 ),
-totals AS (
+asset_values AS (
   SELECT
-    (SELECT COALESCE(SUM(current_value), 0) FROM assets WHERE user_id = 'YOUR_USER_ID_HERE')
-    + (SELECT COALESCE(SUM(current_value), 0) FROM investments WHERE user_id = 'YOUR_USER_ID_HERE')
-    AS total_assets,
-    (SELECT COALESCE(SUM(current_balance), 0) FROM liabilities WHERE user_id = 'YOUR_USER_ID_HERE')
-    AS total_liabilities
+    m.month_start,
+    COALESCE(SUM(a.current_value), 0) AS total_assets
+  FROM months m
+  LEFT JOIN assets a
+    ON a.user_id = 'YOUR_USER_ID_HERE'
+    AND a.purchase_date <= (m.month_start + interval '1 month' - interval '1 day')
+  GROUP BY m.month_start
+),
+investment_values AS (
+  SELECT
+    m.month_start,
+    COALESCE(SUM(i.current_value), 0) AS total_investments
+  FROM months m
+  LEFT JOIN investments i
+    ON i.user_id = 'YOUR_USER_ID_HERE'
+    AND i.purchase_date <= (m.month_start + interval '1 month' - interval '1 day')
+  GROUP BY m.month_start
 )
 SELECT
   'YOUR_USER_ID_HERE',
-  m.month_date,
-  t.total_assets,
-  t.total_liabilities
-FROM months m, totals t
-ON CONFLICT (user_id, snapshot_date)
-DO UPDATE SET
-  total_assets = EXCLUDED.total_assets,
-  total_liabilities = EXCLUDED.total_liabilities;
+  av.month_start,
+  av.total_assets + iv.total_investments,
+  0
+FROM asset_values av
+JOIN investment_values iv ON av.month_start = iv.month_start;
