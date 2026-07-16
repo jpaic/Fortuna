@@ -40,27 +40,49 @@ export function InvestmentHistory({ holdings }: { holdings: Investment[] }) {
   if (!hasTicker) return null;
 
   const selectedInv = selectedId !== "all" ? holdings.find((h) => h.id === selectedId) : null;
+  const currency = selectedInv?.currency ?? "EUR";
 
   const { data: history, isPending } = useQuery<HistoryPoint[]>({
     queryKey: ["investment-history", selectedId],
     queryFn: async () => {
       if (selectedId === "all") {
         const resp = await api.get("/investments/history/all");
-        // Group all investments into cumulative value by date
+        const rows = resp.data as { date: string; value: number }[];
+        // Sum all investment values by date
         const byDate = new Map<string, number>();
-        for (const row of resp.data as { date: string; value: number }[]) {
+        for (const row of rows) {
           byDate.set(row.date, (byDate.get(row.date) ?? 0) + row.value);
         }
-        return [...byDate.entries()]
+        const points = [...byDate.entries()]
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([date, value]) => ({ date, value }));
+        // Append current total value as latest point
+        const today = new Date().toISOString().slice(0, 10);
+        const currentTotal = holdings.reduce((s, h) => s + Number(h.currentValue), 0);
+        if (points.length === 0 || points[points.length - 1].date !== today) {
+          points.push({ date: today, value: currentTotal });
+        } else {
+          points[points.length - 1].value = currentTotal;
+        }
+        return points;
       }
-      return (await api.get("/investments/history", { params: { investmentId: selectedId } })).data;
+      // Single investment
+      const resp = await api.get("/investments/history", { params: { investmentId: selectedId } });
+      const points = resp.data as HistoryPoint[];
+      const inv = holdings.find((h) => h.id === selectedId);
+      if (inv) {
+        const today = new Date().toISOString().slice(0, 10);
+        const currentVal = Number(inv.currentValue);
+        if (points.length === 0 || points[points.length - 1].date !== today) {
+          points.push({ date: today, value: currentVal });
+        } else {
+          points[points.length - 1].value = currentVal;
+        }
+      }
+      return points;
     },
     staleTime: 5 * 60_000,
   });
-
-  const currency = selectedInv?.currency ?? "EUR";
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
@@ -86,7 +108,7 @@ export function InvestmentHistory({ holdings }: { holdings: Investment[] }) {
         <p className="text-sm text-slate-500">Loading history…</p>
       )}
 
-      {!isPending && history && history.length > 1 && (
+      {!isPending && history && history.length > 0 && (
         <ResponsiveContainer width="100%" height={280}>
           <AreaChart data={history} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>
@@ -117,19 +139,20 @@ export function InvestmentHistory({ holdings }: { holdings: Investment[] }) {
             />
             <Tooltip content={<ChartTooltip currency={currency} />} />
             <Area
-              type="stepAfter"
+              type="monotone"
               dataKey="value"
               stroke="#6366f1"
               strokeWidth={2}
               fill="url(#invValueGrad)"
               dot={{ r: 3, fill: "#6366f1", stroke: "#0f172a", strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: "#6366f1", stroke: "#0f172a", strokeWidth: 2 }}
             />
           </AreaChart>
         </ResponsiveContainer>
       )}
 
-      {!isPending && history && history.length <= 1 && (
-        <p className="text-sm text-slate-500">Not enough data points. Add more investments or record value history.</p>
+      {!isPending && history && history.length === 0 && (
+        <p className="text-sm text-slate-500">No history data yet. Chart will update as you add investments.</p>
       )}
     </div>
   );

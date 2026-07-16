@@ -242,17 +242,6 @@ export function Investments() {
         </div>
       </div>
 
-      {holdings.length > 0 && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-          <p className="mb-4 text-sm font-medium text-slate-300">ROI by holding</p>
-          <InvestmentPerformance data={holdings} />
-        </div>
-      )}
-
-      {holdings.length > 0 && (
-        <InvestmentHistory holdings={holdings} />
-      )}
-
       <div className="overflow-hidden rounded-xl border border-slate-800">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-900/60 text-slate-400">
@@ -289,6 +278,17 @@ export function Investments() {
         </table>
       </div>
 
+      {holdings.length > 0 && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+          <p className="mb-4 text-sm font-medium text-slate-300">ROI by holding</p>
+          <InvestmentPerformance data={holdings} />
+        </div>
+      )}
+
+      {holdings.length > 0 && (
+        <InvestmentHistory holdings={holdings} />
+      )}
+
       {showForm && (
         <Modal title={editing ? "Edit investment" : "Add investment"} onClose={closeModal}>
           <InvestmentForm
@@ -304,7 +304,7 @@ export function Investments() {
               currentPrice: editing.currentPrice,
               broker: editing.broker,
               currency: editing.currency,
-              purchaseDate: editing.purchaseDate,
+              purchaseDate: editing.purchaseDate?.slice(0, 10),
               assetId: undefined,
             } : undefined}
           />

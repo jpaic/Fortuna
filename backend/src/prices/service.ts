@@ -1,5 +1,6 @@
 import { query } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
+import { upsertInvestmentHistory } from "../investments/helpers.js";
 
 // ── Crypto ticker → CoinGecko ID mapping (top ~50) ──────────
 const CRYPTO_MAP: Record<string, string> = {
@@ -391,8 +392,16 @@ export async function refreshUserPrices(
     }
   }
 
-  // Upsert daily snapshot after prices update
+  // Upsert daily snapshot and record history after prices update
   if (updated > 0) {
+    // Record history for each updated investment
+    const updatedInvestments = await query<{ id: string; current_value: string; user_id: string }>(
+      `SELECT id, current_value, user_id FROM investments WHERE user_id = $1 AND price_last_updated > now() - interval '5 minutes'`,
+      [userId]
+    );
+    for (const inv of updatedInvestments) {
+      await upsertInvestmentHistory(inv.user_id, { id: inv.id, current_value: inv.current_value });
+    }
     await upsertDailySnapshot(userId);
   }
 

@@ -357,7 +357,7 @@ export function Assets() {
               purchaseValue: editing.purchaseValue,
               currentValue: editing.currentValue,
               currency: editing.currency,
-              purchaseDate: editing.purchaseDate,
+              purchaseDate: editing.purchaseDate?.slice(0, 10),
               notes: editing.notes,
             } : undefined}
           />
