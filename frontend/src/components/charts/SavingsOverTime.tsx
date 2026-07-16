@@ -27,10 +27,10 @@ export function SavingsOverTime({ data, currency }: Props) {
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={withSavings} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <CartesianGrid stroke="#1e293b" vertical={false} />
-        <XAxis dataKey="month" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+        <XAxis dataKey="month" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 11 }} tickLine={false} axisLine={false} />
         <YAxis
           stroke="#64748b"
-          fontSize={12}
+          tick={{ fill: "#94a3b8", fontSize: 12 }}
           tickLine={false}
           axisLine={false}
           tickFormatter={(v) => {
@@ -40,6 +40,8 @@ export function SavingsOverTime({ data, currency }: Props) {
         />
         <Tooltip
           contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+          labelStyle={{ color: "#e2e8f0" }}
+          itemStyle={{ color: "#cbd5e1" }}
           formatter={(value) => [`${s}${Number(value).toLocaleString()}`, "Savings"]}
         />
         <Bar dataKey="savings" radius={[2, 2, 0, 0]} maxBarSize={24}>
