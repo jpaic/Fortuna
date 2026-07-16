@@ -23,7 +23,9 @@ const CATEGORY_GROUPS: { label: string; options: { value: string; label: string 
     options: [
       { value: "groceries", label: "Groceries" },
       { value: "dining_out", label: "Dining out" },
+      { value: "fast_food", label: "Fast food" },
       { value: "coffee", label: "Coffee" },
+      { value: "drinks", label: "Drinks" },
     ],
   },
   {

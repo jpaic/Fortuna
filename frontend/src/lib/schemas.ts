@@ -51,7 +51,13 @@ export const investmentSchema = z.object({
 
 export const incomeSchema = z.object({
   source: z.string().min(1, "Source is required"),
-  category: z.enum(["salary", "freelance", "dividends", "rental", "other"]),
+  category: z.enum([
+    "salary", "bonus", "commission", "overtime",
+    "freelance", "consulting", "side_hustle",
+    "dividends", "interest_income", "capital_gains", "rental_income",
+    "royalties", "affiliate",
+    "gifts_received", "refund", "tax_refund", "other",
+  ]),
   amount: z.coerce.number().positive(),
   currency: z.string().length(3),
   frequency: z.enum(["one_time", "weekly", "monthly", "yearly"]),
@@ -63,7 +69,7 @@ export const incomeSchema = z.object({
 export const expenseSchema = z.object({
   category: z.enum([
     "rent", "mortgage", "utilities", "home_reno", "home_ins", "hoa",
-    "groceries", "dining_out", "coffee",
+    "groceries", "dining_out", "fast_food", "coffee", "drinks",
     "fuel", "car_ins", "car_maint", "parking", "transit", "ride_share",
     "clothing", "grooming", "fitness",
     "subs_stream", "subs_software", "subs_gaming", "news",

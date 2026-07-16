@@ -63,7 +63,12 @@ export interface Income {
   notes?: string;
 }
 
-export type IncomeCategory = "salary" | "freelance" | "dividends" | "rental" | "other";
+export type IncomeCategory =
+  | "salary" | "bonus" | "commission" | "overtime"
+  | "freelance" | "consulting" | "side_hustle"
+  | "dividends" | "interest_income" | "capital_gains" | "rental_income"
+  | "royalties" | "affiliate"
+  | "gifts_received" | "refund" | "tax_refund" | "other";
 
 export interface Expense {
   id: string;
@@ -79,7 +84,7 @@ export interface Expense {
 
 export type ExpenseCategory =
   | "rent" | "mortgage" | "utilities" | "home_reno" | "home_ins" | "hoa"
-  | "groceries" | "dining_out" | "coffee"
+  | "groceries" | "dining_out" | "fast_food" | "coffee" | "drinks"
   | "fuel" | "car_ins" | "car_maint" | "parking" | "transit" | "ride_share"
   | "clothing" | "grooming" | "fitness"
   | "subs_stream" | "subs_software" | "subs_gaming" | "news"

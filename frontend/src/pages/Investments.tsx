@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Pencil, RefreshCw, ChevronDown, ChevronRight, ArrowUpRight } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import type { Investment } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { InvestmentForm } from "../components/forms/InvestmentForm";
+import { SellInvestmentModal } from "../components/SellInvestmentModal";
 import { InvestmentPerformance } from "../components/charts/InvestmentPerformance";
 import type { InvestmentInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
@@ -27,11 +28,13 @@ function InvestmentRow({
   inv,
   onEdit,
   onRemove,
+  onSell,
   format,
 }: {
   inv: Investment;
   onEdit: (inv: Investment) => void;
   onRemove: (id: string) => void;
+  onSell: (inv: Investment) => void;
   format: (value: number, currency: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -76,12 +79,12 @@ function InvestmentRow({
         <td className="px-4 py-3">{format(inv.currentValue, inv.currency)}</td>
         <td className={`px-4 py-3 ${Number(inv.profitLoss) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
           {Number(inv.profitLoss) >= 0 ? "+" : ""}
-          {format(inv.profitLoss, inv.currency)}
-        </td>
-        <td className={`px-4 py-3 ${Number(inv.roiPercent) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-          {Number(inv.roiPercent).toFixed(1)}%
+          {format(inv.profitLoss, inv.currency)} ({Number(inv.roiPercent).toFixed(1)}%)
         </td>
         <td className="px-4 py-3 text-right">
+          <button onClick={() => onSell(inv)} className="text-slate-500 hover:text-amber-400 mr-2" title="Sell">
+            <ArrowUpRight size={16} />
+          </button>
           <button onClick={() => onEdit(inv)} className="text-slate-500 hover:text-emerald-400 mr-2">
             <Pencil size={16} />
           </button>
@@ -92,7 +95,7 @@ function InvestmentRow({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={8} className="px-4 pb-3">
+          <td colSpan={7} className="px-4 pb-3">
             <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
               <div className="grid grid-cols-4 gap-4 text-sm">
                 <div>
@@ -149,6 +152,7 @@ export function Investments() {
   const { list, create, update, remove } = useResource<Investment>("investments");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Investment | null>(null);
+  const [selling, setSelling] = useState<Investment | null>(null);
   const { format, displayCurrency } = useCurrency();
   const queryClient = useQueryClient();
 
@@ -163,6 +167,18 @@ export function Investments() {
       queryClient.invalidateQueries({ queryKey: ["price-status"] });
       queryClient.invalidateQueries({ queryKey: ["investments"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    },
+  });
+
+  const sellMutation = useMutation({
+    mutationFn: async ({ id, quantity, assetId }: { id: string; quantity: number; assetId: string }) =>
+      (await api.post(`/investments/${id}/sell`, { quantity, assetId })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["investments"] });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["income"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      setSelling(null);
     },
   });
 
@@ -238,8 +254,7 @@ export function Investments() {
               <th className="px-4 py-3 font-medium">Avg buy</th>
               <th className="px-4 py-3 font-medium">Current price</th>
               <th className="px-4 py-3 font-medium">Value</th>
-              <th className="px-4 py-3 font-medium">P/L</th>
-              <th className="px-4 py-3 font-medium">ROI</th>
+              <th className="px-4 py-3 font-medium">P/L (ROI)</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -250,12 +265,13 @@ export function Investments() {
                 inv={inv}
                 onEdit={openEdit}
                 onRemove={(id) => remove.mutate(id)}
+                onSell={setSelling}
                 format={format}
               />
             ))}
             {holdings.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                   No investments yet. Add your first holding.
                 </td>
               </tr>
@@ -282,6 +298,18 @@ export function Investments() {
               purchaseDate: editing.purchaseDate,
               assetId: undefined,
             } : undefined}
+          />
+        </Modal>
+      )}
+
+      {selling && (
+        <Modal title="Sell investment" onClose={() => setSelling(null)}>
+          <SellInvestmentModal
+            investment={selling}
+            onClose={() => setSelling(null)}
+            onSell={(data) => sellMutation.mutate({ id: selling.id, ...data })}
+            isPending={sellMutation.isPending}
+            format={format}
           />
         </Modal>
       )}

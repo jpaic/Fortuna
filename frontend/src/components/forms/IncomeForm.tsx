@@ -6,7 +6,51 @@ import { api } from "../../lib/api";
 import { assetDisplayName } from "../../lib/assetDisplayName";
 import type { Asset } from "../../types";
 
-const CATEGORIES = ["salary", "freelance", "dividends", "rental", "other"] as const;
+const CATEGORY_GROUPS: { label: string; options: { value: string; label: string }[] }[] = [
+  {
+    label: "Employment",
+    options: [
+      { value: "salary", label: "Salary" },
+      { value: "bonus", label: "Bonus" },
+      { value: "commission", label: "Commission" },
+      { value: "overtime", label: "Overtime" },
+    ],
+  },
+  {
+    label: "Self-employment",
+    options: [
+      { value: "freelance", label: "Freelance" },
+      { value: "consulting", label: "Consulting" },
+      { value: "side_hustle", label: "Side hustle" },
+    ],
+  },
+  {
+    label: "Investment income",
+    options: [
+      { value: "dividends", label: "Dividends" },
+      { value: "interest_income", label: "Interest income" },
+      { value: "capital_gains", label: "Capital gains (sale)" },
+      { value: "rental_income", label: "Rental income" },
+    ],
+  },
+  {
+    label: "Passive",
+    options: [
+      { value: "royalties", label: "Royalties" },
+      { value: "affiliate", label: "Affiliate income" },
+    ],
+  },
+  {
+    label: "Other",
+    options: [
+      { value: "gifts_received", label: "Gifts received" },
+      { value: "refund", label: "Refund" },
+      { value: "tax_refund", label: "Tax refund" },
+      { value: "other", label: "Other" },
+    ],
+  },
+];
+
 const FREQUENCIES = ["one_time", "weekly", "monthly", "yearly"] as const;
 
 const inputClass =
@@ -55,10 +99,14 @@ export function IncomeForm({
         <div>
           <label className={labelClass}>Category</label>
           <select {...register("category")} className={inputClass}>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+            {CATEGORY_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>

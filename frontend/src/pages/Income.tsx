@@ -6,6 +6,7 @@ import { Modal } from "../components/ui/Modal";
 import { IncomeForm } from "../components/forms/IncomeForm";
 import type { IncomeInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
+import { incomeLabel } from "../lib/incomeLabels";
 
 export function Income() {
   const { list, create, update, remove } = useResource<IncomeEntry>("income");
@@ -64,7 +65,7 @@ export function Income() {
             {list.data?.map((entry) => (
               <tr key={entry.id} className="text-slate-200">
                 <td className="px-4 py-3">{entry.source}</td>
-                <td className="px-4 py-3 capitalize text-slate-400">{entry.category}</td>
+                <td className="px-4 py-3 text-slate-400">{incomeLabel(entry.category)}</td>
                 <td className="px-4 py-3 capitalize text-slate-400">
                   {entry.frequency.replace("_", " ")}
                 </td>

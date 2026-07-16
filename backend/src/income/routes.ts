@@ -4,7 +4,13 @@ import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "../assets/helpers.js";
 
-const category = z.enum(["salary", "freelance", "dividends", "rental", "other"]);
+const category = z.enum([
+  "salary", "bonus", "commission", "overtime",
+  "freelance", "consulting", "side_hustle",
+  "dividends", "interest_income", "capital_gains", "rental_income",
+  "royalties", "affiliate",
+  "gifts_received", "refund", "tax_refund", "other",
+]);
 const frequency = z.enum(["one_time", "weekly", "monthly", "yearly"]);
 
 const createSchema = z.object({

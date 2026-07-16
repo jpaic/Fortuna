@@ -52,7 +52,7 @@ const PALETTE = [...PRIMARY, ...SECONDARY];
 // verbatim by the backend, so they can use a fixed declared order.
 const EXPENSE_ORDER = [
   "rent", "mortgage", "utilities", "home_reno", "home_ins", "hoa",
-  "groceries", "dining_out", "coffee",
+  "groceries", "dining_out", "fast_food", "coffee", "drinks",
   "fuel", "car_ins", "car_maint", "parking", "transit", "ride_share",
   "clothing", "grooming", "fitness",
   "subs_stream", "subs_software", "subs_gaming", "news",
