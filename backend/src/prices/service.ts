@@ -269,31 +269,40 @@ async function fetchYahooTimeseries(
   }
 }
 
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function fetchCoinGeckoTimeseries(
   coinId: string,
-  currency: string
+  currency: string,
+  retries = 2
 ): Promise<PricePoint[]> {
-  try {
-    const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=${currency.toLowerCase()}&days=365`;
-    const resp = await fetch(url);
-    if (!resp.ok) return [];
-    const data = (await resp.json()) as { prices: [number, number][] };
-    if (!data.prices) return [];
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      if (attempt > 0) await sleep(1500 * attempt);
+      const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=${currency.toLowerCase()}&days=365`;
+      const resp = await fetch(url);
+      if (resp.status === 429) continue;
+      if (!resp.ok) return [];
+      const data = (await resp.json()) as { prices: [number, number][] };
+      if (!data.prices) return [];
 
-    // CoinGecko returns [timestamp, price] pairs, deduplicate by day
-    const seen = new Set<string>();
-    const points: PricePoint[] = [];
-    for (const [ts, price] of data.prices) {
-      const date = new Date(ts).toISOString().slice(0, 10);
-      if (!seen.has(date)) {
-        seen.add(date);
-        points.push({ date, price });
+      const seen = new Set<string>();
+      const points: PricePoint[] = [];
+      for (const [ts, price] of data.prices) {
+        const date = new Date(ts).toISOString().slice(0, 10);
+        if (!seen.has(date)) {
+          seen.add(date);
+          points.push({ date, price });
+        }
       }
+      return points;
+    } catch {
+      continue;
     }
-    return points;
-  } catch {
-    return [];
   }
+  return [];
 }
 
 // ── Batch fetch: fetch all prices for a user's investments ───

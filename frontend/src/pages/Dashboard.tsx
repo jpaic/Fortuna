@@ -65,9 +65,10 @@ function DashboardContent() {
           title="Net worth"
           value={fmt(data.netWorth)}
           change={{
-            value: `${data.netWorthChangePercent.toFixed(1)}%`,
+            value: `${data.netWorthChangePercent >= 0 ? "+" : ""}${data.netWorthChangePercent.toFixed(1)}%`,
             positive: data.netWorthChangePercent >= 0,
           }}
+          subtitle="vs last month"
         />
         <Card title="Total assets" value={fmt(data.totalAssets)} />
         <Card title="Investment portfolio" value={fmt(data.investmentPortfolioValue)} />

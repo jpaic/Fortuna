@@ -7,6 +7,7 @@ import type { Investment } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { InvestmentForm } from "../components/forms/InvestmentForm";
 import { SellInvestmentModal } from "../components/SellInvestmentModal";
+import { BuyMoreModal } from "../components/BuyMoreModal";
 import { InvestmentPerformance } from "../components/charts/InvestmentPerformance";
 import { InvestmentHistory } from "../components/charts/InvestmentHistory";
 import type { InvestmentInput } from "../lib/schemas";
@@ -30,12 +31,14 @@ function InvestmentRow({
   onEdit,
   onRemove,
   onSell,
+  onBuy,
   format,
 }: {
   inv: Investment;
   onEdit: (inv: Investment) => void;
   onRemove: (id: string) => void;
   onSell: (inv: Investment) => void;
+  onBuy: (inv: Investment) => void;
   format: (value: number, currency: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -86,6 +89,9 @@ function InvestmentRow({
           {Number(inv.roiPercent).toFixed(1)}%
         </td>
         <td className="px-4 py-3 text-right">
+          <button onClick={() => onBuy(inv)} className="inline-flex items-center justify-center h-7 w-7 rounded-md text-slate-500 hover:text-blue-400 hover:bg-blue-400/10 transition-colors" title="Buy more">
+            <ArrowUpRight size={14} className="rotate-45" />
+          </button>
           <button onClick={() => onSell(inv)} className="inline-flex items-center justify-center h-7 w-7 rounded-md text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 transition-colors" title="Sell">
             <ArrowUpRight size={14} />
           </button>
@@ -157,6 +163,7 @@ export function Investments() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Investment | null>(null);
   const [selling, setSelling] = useState<Investment | null>(null);
+  const [buying, setBuying] = useState<Investment | null>(null);
   const { format, displayCurrency } = useCurrency();
   const queryClient = useQueryClient();
 
@@ -183,6 +190,18 @@ export function Investments() {
       queryClient.invalidateQueries({ queryKey: ["income"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       setSelling(null);
+    },
+  });
+
+  const buyMutation = useMutation({
+    mutationFn: async ({ id, quantity, pricePerUnit, assetId }: { id: string; quantity: number; pricePerUnit: number; assetId?: string }) =>
+      (await api.post(`/investments/${id}/buy`, { quantity, pricePerUnit, assetId })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["investments"] });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      setBuying(null);
     },
   });
 
@@ -264,6 +283,7 @@ export function Investments() {
                 onEdit={openEdit}
                 onRemove={(id) => remove.mutate(id)}
                 onSell={setSelling}
+                onBuy={setBuying}
                 format={format}
               />
             ))}
@@ -318,6 +338,18 @@ export function Investments() {
             onClose={() => setSelling(null)}
             onSell={(data) => sellMutation.mutate({ id: selling.id, ...data })}
             isPending={sellMutation.isPending}
+            format={format}
+          />
+        </Modal>
+      )}
+
+      {buying && (
+        <Modal title="Buy more" onClose={() => setBuying(null)}>
+          <BuyMoreModal
+            investment={buying}
+            onClose={() => setBuying(null)}
+            onBuy={(data) => buyMutation.mutate({ id: buying.id, ...data })}
+            isPending={buyMutation.isPending}
             format={format}
           />
         </Modal>

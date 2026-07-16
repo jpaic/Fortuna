@@ -4,11 +4,13 @@ export function Card({
   title,
   value,
   change,
+  subtitle,
   children,
 }: {
   title: string;
   value?: string;
   change?: { value: string; positive: boolean };
+  subtitle?: string;
   children?: ReactNode;
 }) {
   return (
@@ -23,11 +25,13 @@ export function Card({
                 change.positive ? "text-emerald-400" : "text-rose-400"
               }`}
             >
-              {change.positive ? "+" : ""}
               {change.value}
             </span>
           )}
         </div>
+      )}
+      {subtitle && (
+        <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
       )}
       {children}
     </div>

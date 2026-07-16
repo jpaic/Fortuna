@@ -127,9 +127,25 @@ analyticsRouter.get(
       totalLiabilities: 0,
     }));
 
-    const firstNetWorth = netWorthHistory[0]?.netWorth ?? netWorth;
+    // ── Net worth % change vs ~1 month ago ───────────────────
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const cutoffDate = oneMonthAgo.toISOString().slice(0, 10);
+
+    let lastMonthNetWorth: number | null = null;
+    for (const h of netWorthHistory) {
+      if (h.date <= cutoffDate) {
+        lastMonthNetWorth = h.netWorth;
+      }
+    }
+    if (lastMonthNetWorth === null && netWorthHistory.length > 0) {
+      lastMonthNetWorth = netWorthHistory[0].netWorth;
+    }
+
     const netWorthChangePercent =
-      firstNetWorth !== 0 ? ((netWorth - firstNetWorth) / Math.abs(firstNetWorth)) * 100 : 0;
+      lastMonthNetWorth !== null && lastMonthNetWorth !== 0
+        ? ((netWorth - lastMonthNetWorth) / Math.abs(lastMonthNetWorth)) * 100
+        : 0;
 
     // ── Monthly income vs expenses (last 12 months) ───────────
     const months: { label: string; key: string }[] = [];
