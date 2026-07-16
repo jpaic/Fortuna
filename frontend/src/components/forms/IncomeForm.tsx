@@ -84,7 +84,6 @@ export function IncomeForm({
   const { data: cashAssets } = useQuery<Asset[]>({
     queryKey: ["assets"],
     queryFn: async () => (await api.get("/assets")).data,
-    enabled: !isRecurring,
   });
 
   return (
@@ -144,7 +143,7 @@ export function IncomeForm({
         )}
       </div>
 
-      {!isRecurring && cashAssets && cashAssets.filter((a) => a.category === "cash" || a.category === "bank").length > 0 && (
+      {cashAssets && cashAssets.filter((a) => a.category === "cash" || a.category === "bank").length > 0 && (
         <div>
           <label className={labelClass}>Deposit to asset (optional)</label>
           <select {...register("assetId")} className={inputClass}>

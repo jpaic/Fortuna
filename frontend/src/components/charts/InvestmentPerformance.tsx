@@ -10,10 +10,42 @@ import {
 } from "recharts";
 import type { Investment } from "../../types";
 
+interface ChartEntry {
+  name: string;
+  roi: number;
+  profitLoss: number;
+  currency: string;
+}
+
+const sym = (c: string) =>
+  new Intl.NumberFormat(undefined, { style: "currency", currency: c, minimumFractionDigits: 0, maximumFractionDigits: 0 })
+    .formatToParts(0)
+    .find((p) => p.type === "currency")?.value ?? c;
+
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payload: ChartEntry }[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  const s = sym(d.currency);
+  const color = d.roi >= 0 ? "#34d399" : "#f87171";
+  const sign = d.profitLoss >= 0 ? "+" : "";
+
+  return (
+    <div className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm shadow-xl">
+      <p className="mb-1 text-slate-200">{d.name}</p>
+      <p style={{ color }}>
+        {sign}{s}{Math.abs(d.profitLoss).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+        {" "}({sign}{d.roi.toFixed(1)}%)
+      </p>
+    </div>
+  );
+}
+
 export function InvestmentPerformance({ data }: { data: Investment[] }) {
-  const chartData = data.map((inv) => ({
+  const chartData: ChartEntry[] = data.map((inv) => ({
     name: inv.ticker || inv.assetName,
     roi: inv.roiPercent,
+    profitLoss: inv.profitLoss,
+    currency: inv.currency,
   }));
 
   return (
@@ -28,15 +60,7 @@ export function InvestmentPerformance({ data }: { data: Investment[] }) {
           axisLine={false}
           tickFormatter={(v) => `${v}%`}
         />
-        <Tooltip
-          contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-          labelStyle={{ color: "#e2e8f0" }}
-          formatter={(value) => {
-            const v = Number(value);
-            const color = v >= 0 ? "#34d399" : "#f87171";
-            return [<span style={{ color }}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</span>, <span style={{ color: "#e2e8f0" }}>ROI</span>];
-          }}
-        />
+        <Tooltip content={<CustomTooltip />} />
         <Bar dataKey="roi" radius={[4, 4, 0, 0]}>
           {chartData.map((entry, i) => (
             <Cell key={i} fill={entry.roi >= 0 ? "#34d399" : "#f87171"} />
