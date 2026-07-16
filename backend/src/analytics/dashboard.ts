@@ -138,8 +138,21 @@ analyticsRouter.get(
         lastMonthNetWorth = h.netWorth;
       }
     }
+
+    // If the oldest snapshot is newer than 1 month ago, use it as baseline
     if (lastMonthNetWorth === null && netWorthHistory.length > 0) {
-      lastMonthNetWorth = netWorthHistory[0].netWorth;
+      const oldest = netWorthHistory[0];
+      const oldestAge = (Date.now() - new Date(oldest.date).getTime()) / (1000 * 60 * 60 * 24);
+      if (oldestAge <= 45) {
+        lastMonthNetWorth = oldest.netWorth;
+      }
+    }
+
+    // If the found snapshot is > 45 days old, don't show a stale comparison
+    if (lastMonthNetWorth !== null) {
+      const ref = netWorthHistory.find((h) => h.netWorth === lastMonthNetWorth)!;
+      const age = (Date.now() - new Date(ref.date).getTime()) / (1000 * 60 * 60 * 24);
+      if (age > 45) lastMonthNetWorth = null;
     }
 
     const netWorthChangePercent =
