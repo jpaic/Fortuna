@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/error.js";
-import { refreshUserPrices, getLastPriceUpdate, fetchSinglePrice, fetchPriceHistory } from "./service.js";
+import { refreshUserPrices, getLastPriceUpdate, fetchSinglePrice, fetchPriceHistory, fetchPriceTimeseries } from "./service.js";
 
 export const pricesRouter = Router();
 pricesRouter.use(requireAuth);
@@ -89,5 +89,22 @@ pricesRouter.get(
 
     const history = await fetchPriceHistory(ticker, type, currency);
     res.json(history);
+  })
+);
+
+pricesRouter.get(
+  "/timeseries",
+  asyncHandler(async (req, res) => {
+    const ticker = String(req.query.ticker ?? "").toUpperCase();
+    const type = String(req.query.type ?? "stock");
+    const currency = String(req.query.currency ?? "EUR");
+
+    if (!ticker) {
+      res.status(400).json({ error: "ticker is required" });
+      return;
+    }
+
+    const timeseries = await fetchPriceTimeseries(ticker, type, currency);
+    res.json(timeseries);
   })
 );

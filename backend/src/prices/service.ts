@@ -219,6 +219,82 @@ export async function fetchPriceHistory(
   return fetchYahooHistory(ticker, currency);
 }
 
+// ── Price timeseries: daily closes for line chart ────────────
+export interface PricePoint {
+  date: string;
+  price: number;
+}
+
+export async function fetchPriceTimeseries(
+  ticker: string,
+  type: string,
+  currency: string
+): Promise<PricePoint[]> {
+  if (type === "crypto") {
+    const coinId = CRYPTO_MAP[ticker.toUpperCase()] ?? ticker.toLowerCase();
+    return fetchCoinGeckoTimeseries(coinId, currency);
+  }
+  return fetchYahooTimeseries(ticker, currency);
+}
+
+async function fetchYahooTimeseries(
+  ticker: string,
+  currency: string
+): Promise<PricePoint[]> {
+  const headers = { "User-Agent": "Mozilla/5.0" };
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1y`;
+  try {
+    const resp = await fetch(url, { headers });
+    if (!resp.ok) return [];
+    const data = (await resp.json()) as {
+      chart?: { result?: [{ indicators?: { quote?: [{ close?: (number | null)[] }] }; timestamp?: number[] }] };
+    };
+    const timestamps = data.chart?.result?.[0]?.timestamp;
+    const closes = data.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+    if (!timestamps || !closes) return [];
+
+    const points: PricePoint[] = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      if (closes[i] != null) {
+        points.push({
+          date: new Date(timestamps[i] * 1000).toISOString().slice(0, 10),
+          price: closes[i]!,
+        });
+      }
+    }
+    return points;
+  } catch {
+    return [];
+  }
+}
+
+async function fetchCoinGeckoTimeseries(
+  coinId: string,
+  currency: string
+): Promise<PricePoint[]> {
+  try {
+    const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=${currency.toLowerCase()}&days=365`;
+    const resp = await fetch(url);
+    if (!resp.ok) return [];
+    const data = (await resp.json()) as { prices: [number, number][] };
+    if (!data.prices) return [];
+
+    // CoinGecko returns [timestamp, price] pairs, deduplicate by day
+    const seen = new Set<string>();
+    const points: PricePoint[] = [];
+    for (const [ts, price] of data.prices) {
+      const date = new Date(ts).toISOString().slice(0, 10);
+      if (!seen.has(date)) {
+        seen.add(date);
+        points.push({ date, price });
+      }
+    }
+    return points;
+  } catch {
+    return [];
+  }
+}
+
 // ── Batch fetch: fetch all prices for a user's investments ───
 interface InvestmentRow {
   id: string;

@@ -12,6 +12,7 @@ import type { Investment } from "../../types";
 
 interface ChartEntry {
   name: string;
+  ticker: string;
   roi: number;
   currentValue: number;
   currency: string;
@@ -31,8 +32,8 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payl
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm shadow-xl">
-      <p className="mb-1 text-slate-200">{d.name}</p>
-      <p className="text-slate-200">
+      <p className="text-slate-200 font-medium">{d.ticker || d.name}</p>
+      <p className="text-slate-300">
         {s}{d.currentValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
       </p>
       <p style={{ color }}>
@@ -44,7 +45,8 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payl
 
 export function InvestmentPerformance({ data }: { data: Investment[] }) {
   const chartData: ChartEntry[] = data.map((inv) => ({
-    name: inv.ticker || inv.assetName,
+    name: inv.assetName,
+    ticker: inv.ticker || "",
     roi: inv.roiPercent,
     currentValue: inv.currentValue,
     currency: inv.currency,
@@ -54,7 +56,7 @@ export function InvestmentPerformance({ data }: { data: Investment[] }) {
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <CartesianGrid stroke="#1e293b" vertical={false} />
-        <XAxis dataKey="name" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12 }} tickLine={false} axisLine={false} />
+        <XAxis dataKey="ticker" stroke="#64748b" tick={{ fill: "#94a3b8", fontSize: 12 }} tickLine={false} axisLine={false} />
         <YAxis
           stroke="#64748b"
           tick={{ fill: "#94a3b8", fontSize: 12 }}

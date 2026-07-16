@@ -8,6 +8,7 @@ import { Modal } from "../components/ui/Modal";
 import { InvestmentForm } from "../components/forms/InvestmentForm";
 import { SellInvestmentModal } from "../components/SellInvestmentModal";
 import { InvestmentPerformance } from "../components/charts/InvestmentPerformance";
+import { InvestmentHistory } from "../components/charts/InvestmentHistory";
 import type { InvestmentInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 
@@ -246,6 +247,10 @@ export function Investments() {
           <p className="mb-4 text-sm font-medium text-slate-300">ROI by holding</p>
           <InvestmentPerformance data={holdings} />
         </div>
+      )}
+
+      {holdings.length > 0 && (
+        <InvestmentHistory holdings={holdings} />
       )}
 
       <div className="overflow-hidden rounded-xl border border-slate-800">
