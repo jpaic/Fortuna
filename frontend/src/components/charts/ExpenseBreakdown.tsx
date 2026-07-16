@@ -54,6 +54,7 @@ export function ExpenseBreakdown({ data, currency = "EUR" }: Props) {
       <ChartLegend
         items={sorted.map((d) => ({ ...d, color: colorForExpense(d.category) }))}
         currency={currency}
+        labelFn={expenseLabel}
       />
     </div>
   );

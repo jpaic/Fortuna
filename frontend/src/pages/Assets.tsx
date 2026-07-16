@@ -100,7 +100,7 @@ function AssetRow({
           </button>
         </td>
         <td className="px-4 py-3 text-slate-400">
-          {isCash ? "Cash / Bank" : asset.category.replace("_", " ")}
+          {asset.category === "cash" ? "Cash" : asset.category === "bank" ? "Bank" : asset.category === "real_estate" ? "Real Estate" : asset.category === "vehicle" ? "Vehicle" : "Other"}
         </td>
         <td className="px-4 py-3">
           {format(isCash ? asset.purchaseValue : asset.currentValue, asset.currency)}

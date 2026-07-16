@@ -85,14 +85,14 @@ function InvestmentRow({
           {Number(inv.roiPercent).toFixed(1)}%
         </td>
         <td className="px-4 py-3 text-right">
-          <button onClick={() => onSell(inv)} className="text-slate-500 hover:text-amber-400 mr-2" title="Sell">
-            <ArrowUpRight size={16} />
+          <button onClick={() => onSell(inv)} className="inline-flex items-center justify-center h-7 w-7 rounded-md text-slate-500 hover:text-amber-400 hover:bg-amber-400/10 transition-colors" title="Sell">
+            <ArrowUpRight size={14} />
           </button>
-          <button onClick={() => onEdit(inv)} className="text-slate-500 hover:text-emerald-400 mr-2">
-            <Pencil size={16} />
+          <button onClick={() => onEdit(inv)} className="inline-flex items-center justify-center h-7 w-7 rounded-md text-slate-500 hover:text-emerald-400 hover:bg-emerald-400/10 transition-colors" title="Edit">
+            <Pencil size={14} />
           </button>
-          <button onClick={() => onRemove(inv.id)} className="text-slate-500 hover:text-rose-400">
-            <Trash2 size={16} />
+          <button onClick={() => onRemove(inv.id)} className="inline-flex items-center justify-center h-7 w-7 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-400/10 transition-colors" title="Delete">
+            <Trash2 size={14} />
           </button>
         </td>
       </tr>
