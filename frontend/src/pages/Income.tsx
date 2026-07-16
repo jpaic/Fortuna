@@ -1,18 +1,28 @@
 import { useState } from "react";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { useResource } from "../hooks/useResource";
-import type { Income as IncomeEntry } from "../types";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../lib/api";
+import type { Income as IncomeEntry, Asset } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { IncomeForm } from "../components/forms/IncomeForm";
 import type { IncomeInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 import { incomeLabel } from "../lib/incomeLabels";
+import { assetDisplayName } from "../lib/assetDisplayName";
 
 export function Income() {
   const { list, create, update, remove } = useResource<IncomeEntry>("income");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IncomeEntry | null>(null);
   const { format, displayCurrency } = useCurrency();
+
+  const { data: assets } = useQuery<Asset[]>({
+    queryKey: ["assets"],
+    queryFn: async () => (await api.get("/assets")).data,
+  });
+
+  const assetMap = new Map(assets?.map((a) => [a.id, assetDisplayName(a)]) ?? []);
 
   async function handleSubmit(data: IncomeInput) {
     if (editing) {
@@ -39,7 +49,7 @@ export function Income() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">Income</h1>
-          <p className="text-sm text-slate-400">Money coming in.</p>
+          <p className="text-sm text-slate-400">Where your money comes from.</p>
         </div>
         <button
           onClick={() => { setEditing(null); setShowForm(true); }}
@@ -57,7 +67,7 @@ export function Income() {
               <th className="px-4 py-3 font-medium">Category</th>
               <th className="px-4 py-3 font-medium">Frequency</th>
               <th className="px-4 py-3 font-medium">Amount</th>
-              <th className="px-4 py-3 font-medium">Note</th>
+              <th className="px-4 py-3 font-medium">Account</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -73,7 +83,7 @@ export function Income() {
                   +{format(entry.amount, entry.currency)}
                 </td>
                 <td className="px-4 py-3 text-slate-400">
-                  {entry.notes || "—"}
+                  {entry.assetId ? (assetMap.get(entry.assetId) ?? "—") : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button onClick={() => openEdit(entry)} className="text-slate-500 hover:text-emerald-400 mr-2">
@@ -110,6 +120,7 @@ export function Income() {
               frequency: editing.frequency,
               date: editing.date,
               notes: editing.notes,
+              assetId: editing.assetId,
             } : undefined}
           />
         </Modal>

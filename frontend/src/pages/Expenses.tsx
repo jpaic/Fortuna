@@ -1,18 +1,28 @@
 import { useState } from "react";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { useResource } from "../hooks/useResource";
-import type { Expense as ExpenseEntry } from "../types";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../lib/api";
+import type { Expense as ExpenseEntry, Asset } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { ExpenseForm } from "../components/forms/ExpenseForm";
 import type { ExpenseInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 import { expenseLabel } from "../lib/expenseLabels";
+import { assetDisplayName } from "../lib/assetDisplayName";
 
 export function Expenses() {
   const { list, create, update, remove } = useResource<ExpenseEntry>("expenses");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ExpenseEntry | null>(null);
   const { format, displayCurrency } = useCurrency();
+
+  const { data: assets } = useQuery<Asset[]>({
+    queryKey: ["assets"],
+    queryFn: async () => (await api.get("/assets")).data,
+  });
+
+  const assetMap = new Map(assets?.map((a) => [a.id, assetDisplayName(a)]) ?? []);
 
   async function handleSubmit(data: ExpenseInput) {
     if (editing) {
@@ -57,7 +67,7 @@ export function Expenses() {
               <th className="px-4 py-3 font-medium">Merchant</th>
               <th className="px-4 py-3 font-medium">Frequency</th>
               <th className="px-4 py-3 font-medium">Amount</th>
-              <th className="px-4 py-3 font-medium">Note</th>
+              <th className="px-4 py-3 font-medium">Account</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -73,7 +83,7 @@ export function Expenses() {
                   -{format(entry.amount, entry.currency)}
                 </td>
                 <td className="px-4 py-3 text-slate-400">
-                  {entry.notes || "—"}
+                  {entry.assetId ? (assetMap.get(entry.assetId) ?? "—") : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button onClick={() => openEdit(entry)} className="text-slate-500 hover:text-emerald-400 mr-2">
@@ -110,6 +120,7 @@ export function Expenses() {
               frequency: editing.frequency,
               date: editing.date,
               notes: editing.notes,
+              assetId: editing.assetId,
             } : undefined}
           />
         </Modal>

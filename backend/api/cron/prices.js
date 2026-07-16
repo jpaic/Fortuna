@@ -5,10 +5,11 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  // Import compiled modules
   const { query } = await import("../../dist/db/pool.js");
   const { refreshUserPrices } = await import("../../dist/prices/service.js");
+  const { processRecurring } = await import("../../dist/recurring/processor.js");
 
+  // Refresh investment prices
   const users = await query("SELECT DISTINCT user_id FROM investments WHERE ticker IS NOT NULL AND ticker != ''");
   let refreshed = 0;
   let failed = 0;
@@ -23,5 +24,13 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.json({ refreshed, failed, users: users.length });
+  // Process recurring expenses/income
+  let recurring = { expensesProcessed: 0, incomeProcessed: 0 };
+  try {
+    recurring = await processRecurring();
+  } catch {
+    // Recurring processing failure shouldn't block price refresh
+  }
+
+  return res.json({ refreshed, failed, users: users.length, ...recurring });
 }

@@ -34,6 +34,7 @@ const columns = {
   frequency: "frequency",
   date: "date",
   notes: "notes",
+  assetId: "asset_id",
 };
 
 async function handleAssetAddition(userId: string, input: Record<string, unknown>) {

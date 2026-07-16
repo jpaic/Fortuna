@@ -61,6 +61,7 @@ export interface Income {
   frequency: "one_time" | "weekly" | "monthly" | "yearly";
   date: string;
   notes?: string;
+  assetId?: string;
 }
 
 export type IncomeCategory =
@@ -80,6 +81,7 @@ export interface Expense {
   frequency: "one_time" | "weekly" | "monthly" | "yearly";
   date: string;
   notes?: string;
+  assetId?: string;
 }
 
 export type ExpenseCategory =

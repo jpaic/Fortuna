@@ -42,6 +42,7 @@ const columns = {
   date: "date",
   frequency: "frequency",
   notes: "notes",
+  assetId: "asset_id",
 };
 
 async function handleAssetDeduction(userId: string, input: Record<string, unknown>) {
