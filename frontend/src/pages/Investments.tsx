@@ -79,7 +79,10 @@ function InvestmentRow({
         <td className="px-4 py-3">{format(inv.currentValue, inv.currency)}</td>
         <td className={`px-4 py-3 ${Number(inv.profitLoss) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
           {Number(inv.profitLoss) >= 0 ? "+" : ""}
-          {format(inv.profitLoss, inv.currency)} ({Number(inv.roiPercent).toFixed(1)}%)
+          {format(inv.profitLoss, inv.currency)}
+        </td>
+        <td className={`px-4 py-3 ${Number(inv.roiPercent) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+          {Number(inv.roiPercent).toFixed(1)}%
         </td>
         <td className="px-4 py-3 text-right">
           <button onClick={() => onSell(inv)} className="text-slate-500 hover:text-amber-400 mr-2" title="Sell">
@@ -95,7 +98,7 @@ function InvestmentRow({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={7} className="px-4 pb-3">
+          <td colSpan={8} className="px-4 pb-3">
             <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
               <div className="grid grid-cols-4 gap-4 text-sm">
                 <div>
@@ -254,7 +257,8 @@ export function Investments() {
               <th className="px-4 py-3 font-medium">Avg buy</th>
               <th className="px-4 py-3 font-medium">Current price</th>
               <th className="px-4 py-3 font-medium">Value</th>
-              <th className="px-4 py-3 font-medium">P/L (ROI)</th>
+              <th className="px-4 py-3 font-medium">P/L</th>
+              <th className="px-4 py-3 font-medium">ROI</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -271,7 +275,7 @@ export function Investments() {
             ))}
             {holdings.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
                   No investments yet. Add your first holding.
                 </td>
               </tr>

@@ -31,8 +31,11 @@ export function InvestmentPerformance({ data }: { data: Investment[] }) {
         <Tooltip
           contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
           labelStyle={{ color: "#e2e8f0" }}
-          itemStyle={{ color: "#cbd5e1" }}
-          formatter={(value) => [`${Number(value).toFixed(1)}%`, "ROI"]}
+          formatter={(value) => {
+            const v = Number(value);
+            const color = v >= 0 ? "#34d399" : "#f87171";
+            return [<span style={{ color }}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</span>, "ROI"];
+          }}
         />
         <Bar dataKey="roi" radius={[4, 4, 0, 0]}>
           {chartData.map((entry, i) => (
