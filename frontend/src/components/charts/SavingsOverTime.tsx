@@ -42,7 +42,11 @@ export function SavingsOverTime({ data, currency }: Props) {
           contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
           labelStyle={{ color: "#e2e8f0" }}
           itemStyle={{ color: "#cbd5e1" }}
-          formatter={(value) => [`${s}${Number(value).toLocaleString()}`, "Savings"]}
+          formatter={(value) => {
+            const v = Number(value);
+            const color = v >= 0 ? "#34d399" : "#f87171";
+            return [<span style={{ color }}>{v >= 0 ? "+" : ""}{s}{v.toLocaleString()}</span>, "Savings"];
+          }}
         />
         <Bar dataKey="savings" radius={[2, 2, 0, 0]} maxBarSize={24}>
           {withSavings.map((entry, i) => (

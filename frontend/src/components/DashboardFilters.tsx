@@ -5,10 +5,35 @@ import { api } from "../lib/api";
 import { assetDisplayName } from "../lib/assetDisplayName";
 import type { Asset } from "../types";
 import { useDashboardFilters } from "../context/FilterContext";
+import { expenseLabel } from "../lib/expenseLabels";
+import { incomeLabel } from "../lib/incomeLabels";
 
 const INV_TYPES = ["stock", "etf", "crypto", "bond", "fund"] as const;
-const INCOME_CATS = ["salary", "freelance", "dividends", "rental", "other"] as const;
-const EXPENSE_CATS = ["housing", "food", "transport", "entertainment", "subscriptions", "healthcare", "other"] as const;
+
+const INCOME_CATS = [
+  "salary", "bonus", "commission", "overtime",
+  "freelance", "consulting", "side_hustle",
+  "dividends", "interest_income", "capital_gains",
+  "rental_income", "royalties", "affiliate",
+  "gifts_received", "refund", "tax_refund", "other",
+];
+
+const EXPENSE_CATS = [
+  "rent", "mortgage", "utilities", "home_reno", "home_ins", "hoa",
+  "groceries", "dining_out", "fast_food", "coffee", "drinks",
+  "fuel", "car_ins", "car_maint", "parking", "transit", "ride_share",
+  "clothing", "grooming", "fitness",
+  "subs_stream", "subs_software", "subs_gaming", "news",
+  "doctors", "pharmacy", "dental", "vision",
+  "tuition", "books", "courses",
+  "kids", "eldercare",
+  "pets",
+  "travel",
+  "gifts", "donations",
+  "fees", "taxes", "insurance", "interest",
+  "stocks", "etf_inv", "crypto_inv", "bonds",
+  "other",
+];
 
 const labelize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
@@ -54,7 +79,7 @@ function Dropdown({
         )}
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-56 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-xl">
+        <div className="absolute z-50 mt-1 w-56 max-h-72 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-xl">
           {items.map((item) => (
             <label
               key={item.id}
@@ -91,8 +116,8 @@ export function DashboardFilters() {
 
   const assetItems = (assets ?? []).map((a) => ({ id: a.id, name: assetDisplayName(a) }));
   const invTypeItems = INV_TYPES.map((t) => ({ id: t, name: labelize(t) }));
-  const incomeItems = INCOME_CATS.map((c) => ({ id: c, name: labelize(c) }));
-  const expenseItems = EXPENSE_CATS.map((c) => ({ id: c, name: labelize(c) }));
+  const incomeItems = INCOME_CATS.map((c) => ({ id: c, name: incomeLabel(c) }));
+  const expenseItems = EXPENSE_CATS.map((c) => ({ id: c, name: expenseLabel(c) }));
 
   return (
     <div className="flex flex-wrap items-center gap-2">

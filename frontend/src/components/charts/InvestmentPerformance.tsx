@@ -34,7 +34,7 @@ export function InvestmentPerformance({ data }: { data: Investment[] }) {
           formatter={(value) => {
             const v = Number(value);
             const color = v >= 0 ? "#34d399" : "#f87171";
-            return [<span style={{ color }}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</span>, "ROI"];
+            return [<span style={{ color }}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</span>, <span style={{ color: "#e2e8f0" }}>ROI</span>];
           }}
         />
         <Bar dataKey="roi" radius={[4, 4, 0, 0]}>
