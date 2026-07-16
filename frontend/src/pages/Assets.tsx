@@ -4,16 +4,27 @@ import { useResource } from "../hooks/useResource";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { assetDisplayName } from "../lib/assetDisplayName";
-import type { Asset } from "../types";
+import type { Asset, Expense, Income } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { AssetForm } from "../components/forms/AssetForm";
 import type { AssetInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { expenseLabel } from "../lib/expenseLabels";
+import { incomeLabel } from "../lib/incomeLabels";
 
 interface AssetHistoryPoint {
   date: string;
   value: number;
+}
+
+interface LinkedTransaction {
+  type: "expense" | "income";
+  category: string;
+  amount: number;
+  currency: string;
+  date: string;
+  notes?: string;
 }
 
 function AssetRow({
@@ -38,12 +49,43 @@ function AssetRow({
     staleTime: 5 * 60_000,
   });
 
+  const { data: expenses } = useQuery<Expense[]>({
+    queryKey: ["assets", asset.id, "expenses"],
+    queryFn: async () => (await api.get("/expenses")).data,
+    enabled: expanded && isCash,
+  });
+
+  const { data: incomes } = useQuery<Income[]>({
+    queryKey: ["assets", asset.id, "incomes"],
+    queryFn: async () => (await api.get("/income")).data,
+    enabled: expanded && isCash,
+  });
+
   const firstVal = history && history.length > 0 ? history[0].value : null;
   const lastVal = history && history.length > 0 ? history[history.length - 1].value : null;
   const totalChange = firstVal != null && lastVal != null ? lastVal - firstVal : null;
   const totalChangePct = firstVal && firstVal !== 0 && totalChange != null
     ? (totalChange / firstVal) * 100
     : null;
+
+  // Linked transactions for cash/bank assets
+  const linkedTxns: LinkedTransaction[] = [];
+  if (isCash && expenses) {
+    for (const e of expenses) {
+      if ((e as any).assetId === asset.id || (e as any).asset_id === asset.id) {
+        linkedTxns.push({ type: "expense", category: e.category, amount: -e.amount, currency: e.currency, date: e.date, notes: e.notes });
+      }
+    }
+  }
+  if (isCash && incomes) {
+    for (const i of incomes) {
+      if ((i as any).assetId === asset.id || (i as any).asset_id === asset.id) {
+        linkedTxns.push({ type: "income", category: i.category, amount: i.amount, currency: i.currency, date: i.date, notes: i.notes });
+      }
+    }
+  }
+  linkedTxns.sort((a, b) => b.date.localeCompare(a.date));
+  const recentTxns = linkedTxns.slice(0, 5);
 
   return (
     <>
@@ -57,14 +99,18 @@ function AssetRow({
             {assetDisplayName(asset)}
           </button>
         </td>
-        <td className="px-4 py-3 capitalize text-slate-400">
-          {asset.category.replace("_", " ")}
+        <td className="px-4 py-3 text-slate-400">
+          {isCash ? "Cash / Bank" : asset.category.replace("_", " ")}
         </td>
         <td className="px-4 py-3">
-          {format(asset.purchaseValue, asset.currency)}
+          {format(isCash ? asset.purchaseValue : asset.currentValue, asset.currency)}
         </td>
-        <td className="px-4 py-3 text-slate-400">
-          {isCash ? "—" : format(asset.currentValue, asset.currency)}
+        <td className={`px-4 py-3 ${totalChangePct != null ? (totalChangePct >= 0 ? "text-emerald-400" : "text-rose-400") : "text-slate-500"}`}>
+          {totalChangePct != null ? (
+            <span>
+              {totalChangePct >= 0 ? "+" : ""}{totalChangePct.toFixed(1)}%
+            </span>
+          ) : "—"}
         </td>
         <td className="px-4 py-3 text-right">
           <button onClick={() => onEdit(asset)} className="text-slate-500 hover:text-emerald-400 mr-2">
@@ -79,91 +125,143 @@ function AssetRow({
         <tr>
           <td colSpan={5} className="px-4 pb-3">
             <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-              <div className="grid grid-cols-4 gap-4 text-sm mb-4">
-                <div>
-                  <p className="text-slate-500 mb-1">Purchase value</p>
-                  <p className="text-white font-medium">{format(asset.purchaseValue, asset.currency)}</p>
-                </div>
-                <div>
-                  <p className="text-slate-500 mb-1">Current value</p>
-                  <p className="text-white font-medium">
-                    {isCash ? format(asset.purchaseValue, asset.currency) : format(asset.currentValue, asset.currency)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-slate-500 mb-1">Change</p>
-                  {totalChange != null ? (
-                    <p className={`font-medium ${totalChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {totalChange >= 0 ? "+" : ""}{format(totalChange, asset.currency)}
-                    </p>
-                  ) : (
-                    <p className="text-slate-500">—</p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-slate-500 mb-1">Change %</p>
-                  {totalChangePct != null ? (
-                    <p className={`font-medium ${totalChangePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {totalChangePct >= 0 ? "+" : ""}{totalChangePct.toFixed(1)}%
-                    </p>
-                  ) : (
-                    <p className="text-slate-500">—</p>
-                  )}
-                </div>
-              </div>
+              {isCash ? (
+                <>
+                  <div className="grid grid-cols-3 gap-4 text-sm mb-4">
+                    <div>
+                      <p className="text-slate-500 mb-1">Balance</p>
+                      <p className="text-white font-medium text-lg">{format(asset.purchaseValue, asset.currency)}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-1">Total change</p>
+                      {totalChange != null ? (
+                        <p className={`font-medium ${totalChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {totalChange >= 0 ? "+" : ""}{format(totalChange, asset.currency)}
+                          {totalChangePct != null && <span className="text-xs ml-1">({totalChangePct >= 0 ? "+" : ""}{totalChangePct.toFixed(1)}%)</span>}
+                        </p>
+                      ) : (
+                        <p className="text-slate-500">—</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-1">Linked transactions</p>
+                      <p className="text-white font-medium">{linkedTxns.length}</p>
+                    </div>
+                  </div>
 
-              {history && history.length > 1 && (
-                <div className="pt-3 border-t border-slate-800">
-                  <p className="text-xs text-slate-500 mb-2">Value over time</p>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <LineChart data={history}>
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={(d: string) => {
-                          const date = new Date(d + "T00:00:00");
-                          return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-                        }}
-                        tick={{ fill: "#64748b", fontSize: 11 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        tickFormatter={(v: number) => format(v, asset.currency).replace(/[\d.,]/g, "")}
-                        tick={{ fill: "#64748b", fontSize: 11 }}
-                        axisLine={false}
-                        tickLine={false}
-                        width={40}
-                      />
-                      <Tooltip
-                        formatter={(value) => format(Number(value), asset.currency)}
-                        labelFormatter={(label) => {
-                          const d = String(label);
-                          return new Date(d + "T00:00:00").toLocaleDateString();
-                        }}
-                        contentStyle={{
-                          backgroundColor: "#1e293b",
-                          border: "1px solid #334155",
-                          borderRadius: "8px",
-                          fontSize: 12,
-                        }}
-                        labelStyle={{ color: "#94a3b8" }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="value"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+                  {recentTxns.length > 0 && (
+                    <div className="pt-3 border-t border-slate-800">
+                      <p className="text-xs text-slate-500 mb-2">Recent activity</p>
+                      <div className="space-y-1.5">
+                        {recentTxns.map((tx, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-block h-1.5 w-1.5 rounded-full ${tx.type === "income" ? "bg-emerald-400" : "bg-rose-400"}`} />
+                              <span className="text-slate-400">{tx.date}</span>
+                              <span className="text-slate-300">{tx.type === "income" ? incomeLabel(tx.category) : expenseLabel(tx.category)}</span>
+                            </div>
+                            <span className={tx.amount >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                              {tx.amount >= 0 ? "+" : ""}{format(Math.abs(tx.amount), tx.currency)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-              {history && history.length <= 1 && (
-                <p className="pt-3 border-t border-slate-800 text-xs text-slate-500">
-                  Value history will appear here as you update this asset.
-                </p>
+                  {recentTxns.length === 0 && (
+                    <p className="pt-3 border-t border-slate-800 text-xs text-slate-500">
+                      No linked transactions yet. Select this account when recording expenses or income.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-4 gap-4 text-sm mb-4">
+                    <div>
+                      <p className="text-slate-500 mb-1">Purchase value</p>
+                      <p className="text-white font-medium">{format(asset.purchaseValue, asset.currency)}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-1">Current value</p>
+                      <p className="text-white font-medium">{format(asset.currentValue, asset.currency)}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-1">Change</p>
+                      {totalChange != null ? (
+                        <p className={`font-medium ${totalChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {totalChange >= 0 ? "+" : ""}{format(totalChange, asset.currency)}
+                        </p>
+                      ) : (
+                        <p className="text-slate-500">—</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-1">Change %</p>
+                      {totalChangePct != null ? (
+                        <p className={`font-medium ${totalChangePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {totalChangePct >= 0 ? "+" : ""}{totalChangePct.toFixed(1)}%
+                        </p>
+                      ) : (
+                        <p className="text-slate-500">—</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {history && history.length > 1 && (
+                    <div className="pt-3 border-t border-slate-800">
+                      <p className="text-xs text-slate-500 mb-2">Value over time</p>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <LineChart data={history}>
+                          <XAxis
+                            dataKey="date"
+                            tickFormatter={(d: string) => {
+                              const date = new Date(d + "T00:00:00");
+                              return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+                            }}
+                            tick={{ fill: "#64748b", fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            tickFormatter={(v: number) => format(v, asset.currency).replace(/[\d.,]/g, "")}
+                            tick={{ fill: "#64748b", fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={40}
+                          />
+                          <Tooltip
+                            formatter={(value) => format(Number(value), asset.currency)}
+                            labelFormatter={(label) => {
+                              const d = String(label);
+                              return new Date(d + "T00:00:00").toLocaleDateString();
+                            }}
+                            contentStyle={{
+                              backgroundColor: "#1e293b",
+                              border: "1px solid #334155",
+                              borderRadius: "8px",
+                              fontSize: 12,
+                            }}
+                            labelStyle={{ color: "#94a3b8" }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="value"
+                            stroke="#10b981"
+                            strokeWidth={2}
+                            dot={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {history && history.length <= 1 && (
+                    <p className="pt-3 border-t border-slate-800 text-xs text-slate-500">
+                      Value history will appear here as you update this asset.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </td>
@@ -219,9 +317,9 @@ export function Assets() {
           <thead className="bg-slate-900/60 text-slate-400">
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Balance / Purchase value</th>
-              <th className="px-4 py-3 font-medium">Current value</th>
+              <th className="px-4 py-3 font-medium">Type</th>
+              <th className="px-4 py-3 font-medium">Value</th>
+              <th className="px-4 py-3 font-medium">Change</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
