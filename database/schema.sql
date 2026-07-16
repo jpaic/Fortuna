@@ -198,8 +198,23 @@ CREATE TRIGGER trg_income_updated_at
 CREATE TABLE expenses (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  category    VARCHAR(20) NOT NULL
-              CHECK (category IN ('housing', 'food', 'transport', 'entertainment', 'subscriptions', 'healthcare', 'other')),
+  category    VARCHAR(50) NOT NULL
+              CHECK (category IN (
+                'rent', 'mortgage', 'utilities', 'home_reno', 'home_ins', 'hoa',
+                'groceries', 'dining_out', 'coffee',
+                'fuel', 'car_ins', 'car_maint', 'parking', 'transit', 'ride_share',
+                'clothing', 'grooming', 'fitness',
+                'subs_stream', 'subs_software', 'subs_gaming', 'news',
+                'doctors', 'pharmacy', 'dental', 'vision',
+                'tuition', 'books', 'courses',
+                'kids', 'eldercare',
+                'pets',
+                'travel',
+                'gifts', 'donations',
+                'fees', 'taxes', 'insurance', 'interest',
+                'stocks', 'crypto_inv', 'etf_inv', 'bonds',
+                'other'
+              )),
   merchant    VARCHAR(255),
   amount      DECIMAL(18, 2) NOT NULL CHECK (amount > 0),
   currency    CHAR(3) NOT NULL DEFAULT 'USD',

@@ -6,15 +6,111 @@ import { api } from "../../lib/api";
 import { assetDisplayName } from "../../lib/assetDisplayName";
 import type { Asset } from "../../types";
 
-const CATEGORIES = [
-  "housing",
-  "food",
-  "transport",
-  "entertainment",
-  "subscriptions",
-  "healthcare",
-  "other",
-] as const;
+const CATEGORY_GROUPS: { label: string; options: { value: string; label: string }[] }[] = [
+  {
+    label: "Housing",
+    options: [
+      { value: "rent", label: "Rent" },
+      { value: "mortgage", label: "Mortgage" },
+      { value: "utilities", label: "Utilities" },
+      { value: "home_reno", label: "Home improvement" },
+      { value: "home_ins", label: "Home insurance" },
+      { value: "hoa", label: "HOA / Maintenance" },
+    ],
+  },
+  {
+    label: "Food",
+    options: [
+      { value: "groceries", label: "Groceries" },
+      { value: "dining_out", label: "Dining out" },
+      { value: "coffee", label: "Coffee" },
+    ],
+  },
+  {
+    label: "Transport",
+    options: [
+      { value: "fuel", label: "Fuel" },
+      { value: "car_ins", label: "Car insurance" },
+      { value: "car_maint", label: "Car maintenance" },
+      { value: "parking", label: "Parking" },
+      { value: "transit", label: "Public transit" },
+      { value: "ride_share", label: "Ride share / Taxi" },
+    ],
+  },
+  {
+    label: "Personal",
+    options: [
+      { value: "clothing", label: "Clothing" },
+      { value: "grooming", label: "Personal care" },
+      { value: "fitness", label: "Fitness / Gym" },
+    ],
+  },
+  {
+    label: "Subscriptions",
+    options: [
+      { value: "subs_stream", label: "Streaming (Netflix, etc.)" },
+      { value: "subs_software", label: "Software / Apps" },
+      { value: "subs_gaming", label: "Gaming" },
+      { value: "news", label: "News / Magazines" },
+    ],
+  },
+  {
+    label: "Health",
+    options: [
+      { value: "doctors", label: "Doctors / Visits" },
+      { value: "pharmacy", label: "Pharmacy" },
+      { value: "dental", label: "Dental" },
+      { value: "vision", label: "Vision" },
+    ],
+  },
+  {
+    label: "Education",
+    options: [
+      { value: "tuition", label: "Tuition" },
+      { value: "books", label: "Books / Supplies" },
+      { value: "courses", label: "Courses / Training" },
+    ],
+  },
+  {
+    label: "Family",
+    options: [
+      { value: "kids", label: "Childcare / Kids" },
+      { value: "eldercare", label: "Eldercare" },
+    ],
+  },
+  {
+    label: "Pets",
+    options: [{ value: "pets", label: "Pets" }],
+  },
+  {
+    label: "Travel",
+    options: [{ value: "travel", label: "Travel" }],
+  },
+  {
+    label: "Gifts & Donations",
+    options: [
+      { value: "gifts", label: "Gifts" },
+      { value: "donations", label: "Donations" },
+    ],
+  },
+  {
+    label: "Financial",
+    options: [
+      { value: "fees", label: "Bank fees" },
+      { value: "taxes", label: "Taxes" },
+      { value: "insurance", label: "Insurance (other)" },
+      { value: "interest", label: "Interest paid" },
+      { value: "stocks", label: "Stock purchase" },
+      { value: "etf_inv", label: "ETF purchase" },
+      { value: "crypto_inv", label: "Crypto purchase" },
+      { value: "bonds", label: "Bond purchase" },
+    ],
+  },
+  {
+    label: "Other",
+    options: [{ value: "other", label: "Other" }],
+  },
+];
 
 const FREQUENCIES = [
   { value: "one_time", label: "One-time" },
@@ -63,10 +159,14 @@ export function ExpenseForm({
         <div>
           <label className={labelClass}>Category</label>
           <select {...register("category")} className={inputClass}>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+            {CATEGORY_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>

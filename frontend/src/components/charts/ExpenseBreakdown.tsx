@@ -1,5 +1,6 @@
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, matchByDataKey } from "recharts";
 import { colorForExpense } from "../../lib/chartColors";
+import { expenseLabel } from "../../lib/expenseLabels";
 import { ChartLegend } from "./ChartLegend";
 import { sortedDonut, tooltipStyle, useSmoothDonutData, DONUT_TRANSITION_MS } from "./pieUtils";
 
@@ -15,8 +16,6 @@ const fmt = (n: number, c: string) =>
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(n);
-
-const labelize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
 export function ExpenseBreakdown({ data, currency = "EUR" }: Props) {
   const smoothed = useSmoothDonutData(data);
@@ -47,7 +46,7 @@ export function ExpenseBreakdown({ data, currency = "EUR" }: Props) {
             {...tooltipStyle}
             formatter={(_value, _name, entry) => {
               const d = entry.payload as Props["data"][number];
-              return [`${fmt(d.value, currency)} (${d.percent}%)`, labelize(d.category)];
+              return [`${fmt(d.value, currency)} (${d.percent}%)`, expenseLabel(d.category)];
             }}
           />
         </PieChart>

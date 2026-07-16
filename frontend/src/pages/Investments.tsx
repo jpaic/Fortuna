@@ -280,6 +280,7 @@ export function Investments() {
               broker: editing.broker,
               currency: editing.currency,
               purchaseDate: editing.purchaseDate,
+              assetId: undefined,
             } : undefined}
           />
         </Modal>

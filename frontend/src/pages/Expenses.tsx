@@ -6,6 +6,7 @@ import { Modal } from "../components/ui/Modal";
 import { ExpenseForm } from "../components/forms/ExpenseForm";
 import type { ExpenseInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
+import { expenseLabel } from "../lib/expenseLabels";
 
 export function Expenses() {
   const { list, create, update, remove } = useResource<ExpenseEntry>("expenses");
@@ -63,7 +64,7 @@ export function Expenses() {
           <tbody className="divide-y divide-slate-800">
             {list.data?.map((entry) => (
               <tr key={entry.id} className="text-slate-200">
-                <td className="px-4 py-3 capitalize">{entry.category}</td>
+                <td className="px-4 py-3">{expenseLabel(entry.category)}</td>
                 <td className="px-4 py-3 text-slate-400">{entry.merchant || "—"}</td>
                 <td className="px-4 py-3 capitalize text-slate-400">
                   {entry.frequency?.replace("_", " ") ?? "One-time"}

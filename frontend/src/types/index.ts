@@ -78,12 +78,19 @@ export interface Expense {
 }
 
 export type ExpenseCategory =
-  | "housing"
-  | "food"
-  | "transport"
-  | "entertainment"
-  | "subscriptions"
-  | "healthcare"
+  | "rent" | "mortgage" | "utilities" | "home_reno" | "home_ins" | "hoa"
+  | "groceries" | "dining_out" | "coffee"
+  | "fuel" | "car_ins" | "car_maint" | "parking" | "transit" | "ride_share"
+  | "clothing" | "grooming" | "fitness"
+  | "subs_stream" | "subs_software" | "subs_gaming" | "news"
+  | "doctors" | "pharmacy" | "dental" | "vision"
+  | "tuition" | "books" | "courses"
+  | "kids" | "eldercare"
+  | "pets"
+  | "travel"
+  | "gifts" | "donations"
+  | "fees" | "taxes" | "insurance" | "interest"
+  | "stocks" | "crypto_inv" | "etf_inv" | "bonds"
   | "other";
 
 export interface Transaction {
