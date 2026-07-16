@@ -13,7 +13,7 @@ import type { Investment } from "../../types";
 interface ChartEntry {
   name: string;
   roi: number;
-  profitLoss: number;
+  currentValue: number;
   currency: string;
 }
 
@@ -27,14 +27,16 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payl
   const d = payload[0].payload;
   const s = sym(d.currency);
   const color = d.roi >= 0 ? "#34d399" : "#f87171";
-  const sign = d.profitLoss >= 0 ? "+" : "";
+  const sign = d.roi >= 0 ? "+" : "";
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm shadow-xl">
       <p className="mb-1 text-slate-200">{d.name}</p>
+      <p className="text-slate-200">
+        {s}{d.currentValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+      </p>
       <p style={{ color }}>
-        {sign}{s}{Math.abs(d.profitLoss).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-        {" "}({sign}{d.roi.toFixed(1)}%)
+        {sign}{d.roi.toFixed(1)}%
       </p>
     </div>
   );
@@ -44,7 +46,7 @@ export function InvestmentPerformance({ data }: { data: Investment[] }) {
   const chartData: ChartEntry[] = data.map((inv) => ({
     name: inv.ticker || inv.assetName,
     roi: inv.roiPercent,
-    profitLoss: inv.profitLoss,
+    currentValue: inv.currentValue,
     currency: inv.currency,
   }));
 
