@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { api } from "../../lib/api";
+import { useCurrency } from "../../context/CurrencyContext";
 import type { Investment } from "../../types";
 import {
   ResponsiveContainer,
@@ -15,6 +16,12 @@ import {
 interface PricePoint {
   date: string;
   price: number;
+}
+
+interface HistoryPoint {
+  date: string;
+  value: number;
+  quantity: number | null;
 }
 
 interface ChartPoint {
@@ -38,88 +45,185 @@ function ChartTooltip({ active, payload, currency }: { active?: boolean; payload
   );
 }
 
+/**
+ * For each history record, resolve the quantity:
+ * 1. Use stored quantity if present
+ * 2. Otherwise compute from value / price_on_that_date
+ * 3. Otherwise use the most recent known quantity (forward-fill)
+ */
+function resolveHistoryQuantities(
+  history: HistoryPoint[],
+  priceByDate: Map<string, number>,
+  fallbackQty: number
+): { date: string; qty: number }[] {
+  const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date));
+  const resolved: { date: string; qty: number }[] = [];
+  let lastKnownQty = fallbackQty;
+
+  for (const h of sorted) {
+    let qty: number;
+    if (h.quantity != null && h.quantity > 0) {
+      qty = h.quantity;
+    } else if (h.value > 0) {
+      const price = priceByDate.get(h.date);
+      qty = (price && price > 0) ? h.value / price : lastKnownQty;
+    } else {
+      qty = lastKnownQty;
+    }
+    lastKnownQty = qty;
+    resolved.push({ date: h.date, qty });
+  }
+  return resolved;
+}
+
+/**
+ * Forward-fill: each resolved record's qty applies from its date until the next.
+ */
+function buildQuantityTimeline(
+  resolved: { date: string; qty: number }[],
+  startDate: string,
+  fallbackQty: number
+): Map<string, number> {
+  const qtyByDate = new Map<string, number>();
+  if (resolved.length === 0) return qtyByDate;
+
+  const today = new Date().toISOString().slice(0, 10);
+  let currentQty = fallbackQty;
+  let histIdx = 0;
+
+  const d = new Date(startDate + "T00:00:00");
+  const end = new Date(today + "T00:00:00");
+
+  while (d <= end) {
+    const dateStr = d.toISOString().slice(0, 10);
+    while (histIdx < resolved.length && resolved[histIdx].date <= dateStr) {
+      currentQty = resolved[histIdx].qty;
+      histIdx++;
+    }
+    qtyByDate.set(dateStr, currentQty);
+    d.setDate(d.getDate() + 1);
+  }
+  return qtyByDate;
+}
+
 function usePriceTimeseries(ticker: string, type: string, currency: string, enabled: boolean) {
   return useQuery<PricePoint[]>({
     queryKey: ["price-timeseries", ticker, type, currency],
     queryFn: async () =>
       (await api.get("/prices/timeseries", { params: { ticker, type, currency } })).data,
     enabled,
-    staleTime: 15 * 60_000,
+    staleTime: 24 * 60 * 60_000,
+    retry: 2,
+    refetchOnWindowFocus: false,
   });
 }
 
+function useInvestmentHistory(investmentId: string, enabled: boolean) {
+  return useQuery<HistoryPoint[]>({
+    queryKey: ["investment-history", investmentId],
+    queryFn: async () =>
+      (await api.get("/investments/history", { params: { investmentId } })).data,
+    enabled,
+    staleTime: 24 * 60 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+function buildChartDataForInvestment(
+  timeseries: PricePoint[],
+  history: HistoryPoint[] | undefined,
+  inv: Investment
+): ChartPoint[] {
+  if (timeseries.length === 0) return [];
+
+  const priceByDate = new Map<string, number>();
+  for (const p of timeseries) priceByDate.set(p.date, p.price);
+
+  const fallbackQty = Number(inv.quantity);
+  const purchaseDate = inv.purchaseDate?.slice(0, 10) ?? "0000-00-00";
+
+  let qtyMap: Map<string, number>;
+  if (history && history.length > 0) {
+    const resolved = resolveHistoryQuantities(history, priceByDate, fallbackQty);
+    const startDate = resolved[0]?.date ?? purchaseDate;
+    qtyMap = buildQuantityTimeline(resolved, startDate < purchaseDate ? purchaseDate : startDate, fallbackQty);
+  } else {
+    qtyMap = new Map();
+  }
+
+  const result: ChartPoint[] = [];
+  for (const p of timeseries) {
+    if (p.date < purchaseDate) continue;
+    const qty = qtyMap.get(p.date) ?? fallbackQty;
+    result.push({ date: p.date, value: p.price * qty });
+  }
+  return result;
+}
+
 function SingleInvestmentChart({ inv }: { inv: Investment }) {
-  const { data: timeseries, isPending } = usePriceTimeseries(
+  const { data: timeseries, isPending: pricePending } = usePriceTimeseries(
     inv.ticker!, inv.type, inv.currency, true
   );
+  const { data: history, isPending: histPending } = useInvestmentHistory(inv.id, true);
 
-  const chartData = useChartData(timeseries, inv);
+  if (pricePending || histPending) return <p className="text-sm text-slate-500">Loading price data…</p>;
+  if (!timeseries || timeseries.length === 0) return <p className="text-sm text-slate-500">No price data available.</p>;
 
-  if (isPending) return <p className="text-sm text-slate-500">Loading price data…</p>;
+  const chartData = buildChartDataForInvestment(timeseries, history, inv);
   if (chartData.length === 0) return <p className="text-sm text-slate-500">No price data available.</p>;
 
   return <Chart data={chartData} currency={inv.currency} />;
 }
 
-function AllInvestmentsChart({ holdings }: { holdings: Investment[] }) {
+function AllInvestmentsChart({ holdings, displayCurrency }: { holdings: Investment[]; displayCurrency: string }) {
   const withTicker = holdings.filter((h) => h.ticker);
 
-  const queries = useQueries({
+  const priceQueries = useQueries({
     queries: withTicker.map((inv) => ({
       queryKey: ["price-timeseries", inv.ticker, inv.type, inv.currency],
       queryFn: async () =>
         (await api.get("/prices/timeseries", { params: { ticker: inv.ticker, type: inv.type, currency: inv.currency } })).data as PricePoint[],
       enabled: true,
-      staleTime: 15 * 60_000,
+      staleTime: 24 * 60 * 60_000,
+      retry: 2,
+      refetchOnWindowFocus: false,
     })),
   });
 
-  const isPending = queries.some((q) => q.isPending);
+  const histQueries = useQueries({
+    queries: withTicker.map((inv) => ({
+      queryKey: ["investment-history", inv.id],
+      queryFn: async () =>
+        (await api.get("/investments/history", { params: { investmentId: inv.id } })).data as HistoryPoint[],
+      enabled: true,
+      staleTime: 24 * 60 * 60_000,
+      refetchOnWindowFocus: false,
+    })),
+  });
 
-  const chartData = useChartDataMerged(queries, withTicker);
-
+  const isPending = priceQueries.some((q) => q.isPending) || histQueries.some((q) => q.isPending);
   if (isPending) return <p className="text-sm text-slate-500">Loading price data…</p>;
-  if (chartData.length === 0) return <p className="text-sm text-slate-500">No price data available.</p>;
 
-  return <Chart data={chartData} currency="EUR" />;
-}
-
-function useChartData(timeseries: PricePoint[] | undefined, inv: Investment): ChartPoint[] {
-  if (!timeseries || timeseries.length === 0) return [];
-  const qty = Number(inv.quantity);
-  const purchaseDate = inv.purchaseDate?.slice(0, 10) ?? "0000-00-00";
-
-  return timeseries
-    .filter((p) => p.date >= purchaseDate)
-    .map((p) => ({
-      date: p.date,
-      value: p.price * qty,
-    }));
-}
-
-function useChartDataMerged(
-  queries: { data: PricePoint[] | undefined; isSuccess: boolean }[],
-  holdings: Investment[]
-): ChartPoint[] {
   const byDate = new Map<string, number>();
 
-  for (let i = 0; i < holdings.length; i++) {
-    const inv = holdings[i];
-    const timeseries = queries[i]?.data;
-    if (!timeseries) continue;
+  for (let i = 0; i < withTicker.length; i++) {
+    const timeseries = priceQueries[i]?.data;
+    const history = histQueries[i]?.data;
+    if (!timeseries || timeseries.length === 0) continue;
 
-    const qty = Number(inv.quantity);
-    const purchaseDate = inv.purchaseDate?.slice(0, 10) ?? "0000-00-00";
-
-    for (const p of timeseries) {
-      if (p.date < purchaseDate) continue;
-      byDate.set(p.date, (byDate.get(p.date) ?? 0) + p.price * qty);
+    const chartData = buildChartDataForInvestment(timeseries, history, withTicker[i]);
+    for (const pt of chartData) {
+      byDate.set(pt.date, (byDate.get(pt.date) ?? 0) + pt.value);
     }
   }
 
-  return [...byDate.entries()]
+  const chartData = [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, value]) => ({ date, value }));
+
+  if (chartData.length === 0) return <p className="text-sm text-slate-500">No price data available.</p>;
+
+  return <Chart data={chartData} currency={displayCurrency} />;
 }
 
 function Chart({ data, currency }: { data: ChartPoint[]; currency: string }) {
@@ -128,8 +232,8 @@ function Chart({ data, currency }: { data: ChartPoint[]; currency: string }) {
       <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="invValueGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-            <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+            <stop offset="0%" stopColor="#eab308" stopOpacity={0.3} />
+            <stop offset="100%" stopColor="#eab308" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid stroke="#1e293b" vertical={false} />
@@ -156,11 +260,11 @@ function Chart({ data, currency }: { data: ChartPoint[]; currency: string }) {
         <Area
           type="monotone"
           dataKey="value"
-          stroke="#6366f1"
+          stroke="#eab308"
           strokeWidth={2}
           fill="url(#invValueGrad)"
           dot={false}
-          activeDot={{ r: 5, fill: "#6366f1", stroke: "#0f172a", strokeWidth: 2 }}
+          activeDot={{ r: 5, fill: "#eab308", stroke: "#0f172a", strokeWidth: 2 }}
         />
       </AreaChart>
     </ResponsiveContainer>
@@ -169,6 +273,7 @@ function Chart({ data, currency }: { data: ChartPoint[]; currency: string }) {
 
 export function InvestmentHistory({ holdings }: { holdings: Investment[] }) {
   const [selectedId, setSelectedId] = useState<string>("all");
+  const { displayCurrency } = useCurrency();
 
   const hasTicker = holdings.some((h) => h.ticker);
   if (!hasTicker) return null;
@@ -196,7 +301,7 @@ export function InvestmentHistory({ holdings }: { holdings: Investment[] }) {
       </div>
 
       {selectedId === "all" ? (
-        <AllInvestmentsChart holdings={holdings} />
+        <AllInvestmentsChart holdings={holdings} displayCurrency={displayCurrency} />
       ) : selectedInv ? (
         <SingleInvestmentChart inv={selectedInv} />
       ) : null}

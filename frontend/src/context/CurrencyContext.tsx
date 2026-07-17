@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { api } from "../lib/api";
+import { useAuth } from "./AuthContext";
 
 interface CurrencyContextValue {
   displayCurrency: string;
@@ -13,6 +14,7 @@ interface CurrencyContextValue {
 const CurrencyContext = createContext<CurrencyContextValue | undefined>(undefined);
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [displayCurrency, setDisplayCurrencyState] = useState<string>(
     () => localStorage.getItem("displayCurrency") ?? "EUR"
   );
@@ -24,6 +26,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   }, [displayCurrency]);
 
   useEffect(() => {
+    if (!user) return;
     setLoading(true);
     api
       .get(`/exchange-rates?from=${displayCurrency}`)
@@ -32,7 +35,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [displayCurrency]);
+  }, [displayCurrency, user]);
 
   const setDisplayCurrency = useCallback((c: string) => {
     setDisplayCurrencyState(c);

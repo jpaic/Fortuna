@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { assetDisplayName } from "../../lib/assetDisplayName";
 import type { Asset } from "../../types";
+import { CURRENCIES } from "../../lib/currencies";
 
 const CATEGORY_GROUPS: { label: string; options: { value: string; label: string }[] }[] = [
   {
@@ -130,7 +131,7 @@ export function IncomeForm({
         <div>
           <label className={labelClass}>Currency</label>
           <select {...register("currency")} className={`${inputClass} uppercase`}>
-            {["EUR", "USD", "GBP", "CHF"].map((c) => (
+            {CURRENCIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>

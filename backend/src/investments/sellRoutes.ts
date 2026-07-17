@@ -5,6 +5,7 @@ import { asyncHandler, ApiError } from "../middleware/error.js";
 import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "../assets/helpers.js";
+import { upsertInvestmentHistory } from "./helpers.js";
 
 const sellSchema = z.object({
   quantity: z.number().positive(),
@@ -81,6 +82,11 @@ investmentSellRouter.post(
       await query(`DELETE FROM investments WHERE id = $1`, [inv.id]);
     } else {
       await query(`UPDATE investments SET quantity = $1 WHERE id = $2`, [remaining, inv.id]);
+      await upsertInvestmentHistory(userId, {
+        id: inv.id,
+        current_value: remaining * currentPrice,
+        quantity: remaining,
+      });
     }
 
     // 4. Update net worth snapshot

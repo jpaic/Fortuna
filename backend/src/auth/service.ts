@@ -28,15 +28,23 @@ function toPublicUser(row: UserRow) {
 
 const REFRESH_TOKEN_TTL_DAYS = 30;
 
-async function issueTokenPair(userId: string, email: string) {
+async function issueTokenPair(userId: string, email: string, _attempt = 0): Promise<{ accessToken: string; refreshToken: string }> {
   const accessToken = signAccessToken({ user_id: userId, email });
   const refreshToken = signRefreshToken(userId);
 
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
-  await query(
-    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
-    [userId, hashToken(refreshToken), expiresAt]
-  );
+  try {
+    await query(
+      `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+      [userId, hashToken(refreshToken), expiresAt]
+    );
+  } catch (e: unknown) {
+    // Unique-violation on token_hash (extremely rare jti collision) — regenerate
+    if ((e as { code?: string }).code === "23505" && _attempt < 3) {
+      return issueTokenPair(userId, email, _attempt + 1);
+    }
+    throw e;
+  }
 
   return { accessToken, refreshToken };
 }

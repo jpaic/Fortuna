@@ -33,7 +33,19 @@ if (process.env.VERCEL) app.set("trust proxy", 1);
 app.use(helmetFn());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
+    origin: (origin, callback) => {
+      const allowed = [
+        process.env.FRONTEND_URL?.replace(/\/+$/, ""),
+        "http://localhost:5173",
+      ].filter(Boolean) as string[];
+      // Allow requests with no origin (same-origin, curl, server-to-server)
+      // or if the origin is in the allowed list.
+      if (!origin || allowed.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     credentials: true,
   })
 );
@@ -50,12 +62,12 @@ const authLimiter = rateLimitFn({
 
 app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/users", usersRouter);
-app.use("/api/assets", assetsRouter);
 app.use("/api/assets/history", assetHistoryRouter);
+app.use("/api/assets", assetsRouter);
+app.use("/api/investments/history", investmentHistoryRouter);
 app.use("/api/investments", investmentsRouter);
 app.use("/api/investments", investmentSellRouter);
 app.use("/api/investments", investmentBuyRouter);
-app.use("/api/investments/history", investmentHistoryRouter);
 app.use("/api/income", incomeRouter);
 app.use("/api/expenses", expensesRouter);
 app.use("/api/snapshots", snapshotsRouter);
@@ -63,18 +75,35 @@ app.use("/api/prices", pricesRouter);
 app.use("/api/recurring", recurringRouter);
 app.use("/api/dashboard", analyticsRouter);
 
-const CURRENCIES = "EUR,USD,GBP,CHF";
+const CURRENCIES = "EUR,USD,GBP,CHF,RSD";
+
+// In-memory cache for exchange rates (1 hour TTL — rates change infrequently)
+const ratesCache = new Map<string, { data: Record<string, number>; ts: number }>();
+const RATES_TTL = 60 * 60 * 1000;
+
 app.get(
   "/api/exchange-rates",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const from = String(req.query.from ?? "USD");
+    const from = String(req.query.from ?? "EUR").toUpperCase();
+    const cached = ratesCache.get(from);
+    if (cached && Date.now() - cached.ts < RATES_TTL) {
+      res.json({ rates: cached.data });
+      return;
+    }
+
     const resp = await fetch(
-      `https://api.frankfurter.app/latest?from=${from}&to=${CURRENCIES}`
+      `https://open.er-api.com/v6/latest/${from}`
     );
     if (!resp.ok) throw new Error("Failed to fetch rates");
-    const data = await resp.json();
-    res.json(data);
+    const data = (await resp.json()) as { rates?: Record<string, number> };
+    const allowed = ["EUR", "USD", "GBP", "CHF", "RSD"];
+    const filtered: Record<string, number> = {};
+    for (const c of allowed) {
+      if (data.rates?.[c] != null) filtered[c] = data.rates[c];
+    }
+    ratesCache.set(from, { data: filtered, ts: Date.now() });
+    res.json({ rates: filtered });
   })
 );
 

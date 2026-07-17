@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, setAccessToken } from "../lib/api";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { api, onSessionExpired, setAccessToken, tryInitialRefresh } from "../lib/api";
 import type { AuthResponse, User } from "../types";
 
 interface AuthContextValue {
@@ -21,14 +21,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const setUserNull = useCallback(() => setUser(null), []);
+
+  // Register session-expired handler so the api interceptor can clear user
+  // state on refresh failure WITHOUT doing a full page reload (which causes
+  // infinite redirect loops).
+  useEffect(() => {
+    onSessionExpired(setUserNull);
+  }, [setUserNull]);
+
   // On mount, try to silently refresh using the HTTP-only cookie so a page
   // reload doesn't force a re-login.
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await api.post<AuthResponse>("/auth/refresh");
-        setAccessToken(data.accessToken);
-        setUser(data.user);
+        const result = await tryInitialRefresh();
+        if (result) {
+          setAccessToken(result.accessToken);
+          setUser(result.user);
+        } else {
+          setAccessToken(null);
+          setUser(null);
+        }
       } catch {
         setAccessToken(null);
         setUser(null);

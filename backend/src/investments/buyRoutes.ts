@@ -63,10 +63,10 @@ investmentBuyRouter.post(
     );
 
     // Record history for the updated investment
-    const currentValue = newTotalQty * Number(inv.current_price);
     await upsertInvestmentHistory(userId, {
       id: inv.id,
-      current_value: currentValue,
+      current_value: newTotalQty * Number(inv.current_price),
+      quantity: newTotalQty,
     });
 
     // Optionally deduct from asset and create expense

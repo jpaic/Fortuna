@@ -6,9 +6,11 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   LogOut,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useCurrency } from "../../context/CurrencyContext";
+import { CURRENCIES } from "../../lib/currencies";
 
 const NAV_ITEMS = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
@@ -18,11 +20,9 @@ const NAV_ITEMS = [
   { to: "/expenses", label: "Expenses", icon: ArrowDownCircle },
 ];
 
-const CURRENCIES = ["EUR", "USD", "GBP", "CHF"];
-
 export function DashboardLayout() {
   const { user, logout } = useAuth();
-  const { displayCurrency, setDisplayCurrency } = useCurrency();
+  const { displayCurrency, setDisplayCurrency, loading: ratesLoading } = useCurrency();
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100">
@@ -55,15 +55,21 @@ export function DashboardLayout() {
         <div className="space-y-3 border-t border-slate-800 pt-4">
           <div className="px-2">
             <label className="mb-1 block text-xs text-slate-500">Display currency</label>
-            <select
-              value={displayCurrency}
-              onChange={(e) => setDisplayCurrency(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-white focus:border-emerald-500 focus:outline-none"
-            >
-              {CURRENCIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={displayCurrency}
+                onChange={(e) => setDisplayCurrency(e.target.value)}
+                disabled={ratesLoading}
+                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 pr-8 text-sm text-white focus:border-emerald-500 focus:outline-none disabled:opacity-60"
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              {ratesLoading && (
+                <Loader2 size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin text-emerald-400" />
+              )}
+            </div>
           </div>
           <p className="truncate px-3 text-sm text-slate-300">
             {user?.firstName} {user?.lastName}

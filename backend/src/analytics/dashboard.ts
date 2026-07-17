@@ -6,21 +6,22 @@ import { asyncHandler } from "../middleware/error.js";
 export const analyticsRouter = Router();
 analyticsRouter.use(requireAuth);
 
-const FRANKFURTER_URL = "https://api.frankfurter.app/latest";
+const ALLOWED_CURRENCIES = ["EUR", "USD", "GBP", "CHF", "RSD"];
 
 async function getRates(from: string): Promise<Record<string, number>> {
-  const resp = await fetch(`${FRANKFURTER_URL}?from=${from}&to=EUR,USD,GBP,CHF`);
+  const resp = await fetch(`https://open.er-api.com/v6/latest/${from}`);
   if (!resp.ok) return {};
   const data = (await resp.json()) as { rates?: Record<string, number> };
-  return data.rates ?? {};
+  if (!data.rates) return {};
+  const filtered: Record<string, number> = {};
+  for (const c of ALLOWED_CURRENCIES) {
+    if (data.rates[c] != null) filtered[c] = data.rates[c];
+  }
+  return filtered;
 }
 
 function convert(amount: number, from: string, to: string, rates: Record<string, number>): number {
   if (from === to) return amount;
-  if (from === Object.keys(rates)[0]) {
-    const rate = rates[to];
-    return rate ? amount * rate : amount;
-  }
   const rate = rates[from];
   return rate ? amount / rate : amount;
 }

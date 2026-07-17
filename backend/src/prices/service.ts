@@ -208,16 +208,33 @@ async function fetchCoinGeckoHistory(
   }
 }
 
+// ── Price history cache (1 hour — changes infrequently) ─────
+const historyCache = new Map<string, { data: PriceHistory; ts: number }>();
+const HISTORY_TTL = 60 * 60 * 1000;
+
+function historyCacheKey(ticker: string, type: string, currency: string) {
+  return `${type}:${ticker.toUpperCase()}:${currency.toUpperCase()}`;
+}
+
 export async function fetchPriceHistory(
   ticker: string,
   type: string,
   currency: string
 ): Promise<PriceHistory> {
+  const key = historyCacheKey(ticker, type, currency);
+  const cached = historyCache.get(key);
+  if (cached && Date.now() - cached.ts < HISTORY_TTL) return cached.data;
+
+  let data: PriceHistory;
   if (type === "crypto") {
     const coinId = CRYPTO_MAP[ticker.toUpperCase()] ?? ticker.toLowerCase();
-    return fetchCoinGeckoHistory(coinId, currency);
+    data = await fetchCoinGeckoHistory(coinId, currency);
+  } else {
+    data = await fetchYahooHistory(ticker, currency);
   }
-  return fetchYahooHistory(ticker, currency);
+
+  historyCache.set(key, { data, ts: Date.now() });
+  return data;
 }
 
 // ── Price timeseries: daily closes for line chart ────────────
@@ -226,16 +243,35 @@ export interface PricePoint {
   price: number;
 }
 
+// In-memory cache: historical prices are immutable, cache24h
+const timeseriesCache = new Map<string, { data: PricePoint[]; ts: number }>();
+const TS_TTL = 24 * 60 * 60 * 1000;
+
+function tsCacheKey(ticker: string, type: string, currency: string) {
+  return `${type}:${ticker.toUpperCase()}:${currency.toUpperCase()}`;
+}
+
 export async function fetchPriceTimeseries(
   ticker: string,
   type: string,
   currency: string
 ): Promise<PricePoint[]> {
+  const key = tsCacheKey(ticker, type, currency);
+  const cached = timeseriesCache.get(key);
+  if (cached && Date.now() - cached.ts < TS_TTL) return cached.data;
+
+  let data: PricePoint[];
   if (type === "crypto") {
     const coinId = CRYPTO_MAP[ticker.toUpperCase()] ?? ticker.toLowerCase();
-    return fetchCoinGeckoTimeseries(coinId, currency);
+    data = await fetchCoinGeckoTimeseries(coinId, currency);
+  } else {
+    data = await fetchYahooTimeseries(ticker, currency);
   }
-  return fetchYahooTimeseries(ticker, currency);
+
+  if (data.length > 0) {
+    timeseriesCache.set(key, { data, ts: Date.now() });
+  }
+  return data;
 }
 
 async function fetchYahooTimeseries(
@@ -404,12 +440,12 @@ export async function refreshUserPrices(
   // Upsert daily snapshot and record history after prices update
   if (updated > 0) {
     // Record history for each updated investment
-    const updatedInvestments = await query<{ id: string; current_value: string; user_id: string }>(
-      `SELECT id, current_value, user_id FROM investments WHERE user_id = $1 AND price_last_updated > now() - interval '5 minutes'`,
+    const updatedInvestments = await query<{ id: string; current_value: string; quantity: string; user_id: string }>(
+      `SELECT id, current_value, quantity, user_id FROM investments WHERE user_id = $1 AND price_last_updated > now() - interval '5 minutes'`,
       [userId]
     );
     for (const inv of updatedInvestments) {
-      await upsertInvestmentHistory(inv.user_id, { id: inv.id, current_value: inv.current_value });
+      await upsertInvestmentHistory(inv.user_id, { id: inv.id, current_value: inv.current_value, quantity: inv.quantity });
     }
     await upsertDailySnapshot(userId);
   }

@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { assetSchema, type AssetFormValues, type AssetInput } from "../../lib/schemas";
+import { CURRENCIES } from "../../lib/currencies";
 
 const CATEGORIES = ["cash", "bank", "real_estate", "vehicle", "other"] as const;
 
@@ -121,7 +122,7 @@ export function AssetForm({
             {...register("currency")}
             className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm uppercase text-white focus:border-emerald-500 focus:outline-none"
           >
-            {["EUR", "USD", "GBP", "CHF"].map((c) => (
+            {CURRENCIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
