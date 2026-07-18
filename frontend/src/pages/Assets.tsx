@@ -103,7 +103,7 @@ function AssetRow({
           {asset.category === "cash" ? "Cash" : asset.category === "bank" ? "Bank" : asset.category === "real_estate" ? "Real Estate" : asset.category === "vehicle" ? "Vehicle" : "Other"}
         </td>
         <td className="px-4 py-3">
-          {format(isCash ? asset.purchaseValue : asset.currentValue, asset.currency)}
+          {format(asset.currentValue, asset.currency)}
         </td>
         <td className={`px-4 py-3 ${totalChangePct != null ? (totalChangePct >= 0 ? "text-emerald-400" : "text-rose-400") : "text-slate-500"}`}>
           {totalChangePct != null ? (
@@ -130,7 +130,7 @@ function AssetRow({
                   <div className="grid grid-cols-3 gap-4 text-sm mb-4">
                     <div>
                       <p className="text-slate-500 mb-1">Balance</p>
-                      <p className="text-white font-medium text-lg">{format(asset.purchaseValue, asset.currency)}</p>
+                      <p className="text-white font-medium text-lg">{format(asset.currentValue, asset.currency)}</p>
                     </div>
                     <div>
                       <p className="text-slate-500 mb-1">Total change</p>
@@ -279,7 +279,11 @@ export function Assets() {
 
   async function handleSubmit(data: AssetInput) {
     if (editing) {
-      await update.mutateAsync({ id: editing.id, payload: data });
+      const isCash = editing.category === "cash" || editing.category === "bank";
+      const payload = isCash
+        ? { ...data, purchaseValue: editing.purchaseValue }
+        : data;
+      await update.mutateAsync({ id: editing.id, payload });
     } else {
       await create.mutateAsync(data);
     }
@@ -354,7 +358,7 @@ export function Assets() {
               name: editing.name,
               category: editing.category,
               bankName: editing.bankName,
-              purchaseValue: editing.purchaseValue,
+              purchaseValue: (editing.category === "cash" || editing.category === "bank") ? editing.currentValue : editing.purchaseValue,
               currentValue: editing.currentValue,
               currency: editing.currency,
               purchaseDate: editing.purchaseDate?.slice(0, 10),
