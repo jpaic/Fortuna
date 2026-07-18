@@ -65,7 +65,7 @@ function DashboardContent() {
           title="Net worth"
           value={fmt(data.netWorth)}
           change={data.netWorthChangePercent !== 0 ? {
-            value: `${data.netWorthChangePercent >= 0 ? "+" : ""}${data.netWorthChangePercent.toFixed(1)}% monthly`,
+            value: `${data.netWorthChangePercent >= 0 ? "+" : ""}${data.netWorthChangePercent.toFixed(1)}% past 30d`,
             positive: data.netWorthChangePercent >= 0,
           } : undefined}
         />
