@@ -38,7 +38,17 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   }, [displayCurrency, user]);
 
   const setDisplayCurrency = useCallback((c: string) => {
-    setDisplayCurrencyState(c);
+    setLoading(true);
+    api
+      .get(`/exchange-rates?from=${c}`)
+      .then(({ data }) => {
+        setRates(data.rates ?? {});
+        setDisplayCurrencyState(c);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
   }, []);
 
   const convert = useCallback(
