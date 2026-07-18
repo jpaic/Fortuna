@@ -45,7 +45,6 @@ function AssetRow({
     queryKey: ["asset-history", asset.id],
     queryFn: async () =>
       (await api.get("/assets/history", { params: { assetId: asset.id } })).data,
-    enabled: expanded,
     staleTime: 5 * 60_000,
   });
 
@@ -61,12 +60,24 @@ function AssetRow({
     enabled: expanded && isCash,
   });
 
-  const firstVal = history && history.length > 0 ? history[0].value : null;
-  const lastVal = history && history.length > 0 ? history[history.length - 1].value : null;
-  const totalChange = firstVal != null && lastVal != null && firstVal !== lastVal ? lastVal - firstVal : null;
-  const totalChangePct = firstVal && firstVal !== 0 && totalChange != null
-    ? (totalChange / firstVal) * 100
-    : null;
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const cutoff = thirtyDaysAgo.toISOString().slice(0, 10);
+
+  let thirtyDayChange: number | null = null;
+  let thirtyDayChangePct: number | null = null;
+  if (history && history.length >= 2) {
+    const latest = history[history.length - 1];
+    let baseline = history[0];
+    for (const h of history) {
+      if (h.date <= cutoff) baseline = h;
+    }
+    if (baseline.date !== latest.date && baseline.value !== 0) {
+      thirtyDayChange = latest.value - baseline.value;
+      thirtyDayChangePct = (thirtyDayChange / baseline.value) * 100;
+    }
+  }
 
   // Linked transactions for cash/bank assets
   const linkedTxns: LinkedTransaction[] = [];
@@ -105,10 +116,10 @@ function AssetRow({
         <td className="px-4 py-3">
           {format(asset.currentValue, asset.currency)}
         </td>
-        <td className={`px-4 py-3 ${totalChangePct != null ? (totalChangePct >= 0 ? "text-emerald-400" : "text-rose-400") : "text-slate-500"}`}>
-          {totalChangePct != null ? (
+        <td className={`px-4 py-3 ${thirtyDayChangePct != null ? (thirtyDayChangePct >= 0 ? "text-emerald-400" : "text-rose-400") : "text-slate-500"}`}>
+          {thirtyDayChangePct != null ? (
             <span>
-              {totalChangePct >= 0 ? "+" : ""}{totalChangePct.toFixed(1)}%
+              {thirtyDayChangePct >= 0 ? "+" : ""}{thirtyDayChangePct.toFixed(1)}%
             </span>
           ) : "—"}
         </td>
@@ -176,20 +187,20 @@ function AssetRow({
                       <p className="text-white font-medium">{format(asset.currentValue, asset.currency)}</p>
                     </div>
                     <div>
-                      <p className="text-slate-500 mb-1">Change</p>
-                      {totalChange != null ? (
-                        <p className={`font-medium ${totalChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {totalChange >= 0 ? "+" : ""}{format(totalChange, asset.currency)}
+                      <p className="text-slate-500 mb-1">30d change</p>
+                      {thirtyDayChange != null ? (
+                        <p className={`font-medium ${thirtyDayChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {thirtyDayChange >= 0 ? "+" : ""}{format(thirtyDayChange, asset.currency)}
                         </p>
                       ) : (
                         <p className="text-slate-500">—</p>
                       )}
                     </div>
                     <div>
-                      <p className="text-slate-500 mb-1">Change %</p>
-                      {totalChangePct != null ? (
-                        <p className={`font-medium ${totalChangePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {totalChangePct >= 0 ? "+" : ""}{totalChangePct.toFixed(1)}%
+                      <p className="text-slate-500 mb-1">30d %</p>
+                      {thirtyDayChangePct != null ? (
+                        <p className={`font-medium ${thirtyDayChangePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {thirtyDayChangePct >= 0 ? "+" : ""}{thirtyDayChangePct.toFixed(1)}%
                         </p>
                       ) : (
                         <p className="text-slate-500">—</p>
