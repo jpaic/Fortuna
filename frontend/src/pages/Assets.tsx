@@ -133,7 +133,7 @@ function AssetRow({
   return (
     <>
       <tr className="text-slate-200">
-        <td className="px-4 py-3">
+        <td className="px-4 py-3 whitespace-nowrap">
           {canExpand ? (
             <button
               onClick={() => setExpanded(!expanded)}
@@ -158,7 +158,7 @@ function AssetRow({
         <td className="px-4 py-3">
           {format(asset.currentValue, asset.currency)}
         </td>
-        <td className="px-4 py-3 text-right">
+        <td className="px-4 py-3 w-24 text-right whitespace-nowrap">
           {canExpand && (
             <button onClick={() => onTransfer(asset, false)} className="text-slate-500 hover:text-blue-400 mr-2" title="Transfer funds">
               <ArrowLeftRight size={16} />
@@ -401,7 +401,7 @@ export function Assets() {
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Value</th>
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3 w-24" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -440,7 +440,7 @@ export function Assets() {
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Value</th>
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3 w-24" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -479,7 +479,7 @@ export function Assets() {
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Value</th>
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3 w-24" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">

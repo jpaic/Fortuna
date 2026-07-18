@@ -1,8 +1,12 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { assetSchema, type AssetFormValues, type AssetInput } from "../../lib/schemas";
 import { CURRENCIES } from "../../lib/currencies";
+import { assetDisplayName } from "../../lib/assetDisplayName";
+import { api } from "../../lib/api";
+import type { Asset } from "../../types";
 
 const CATEGORIES = ["cash", "bank", "real_estate", "vehicle", "other"] as const;
 
@@ -58,6 +62,14 @@ export function AssetForm({
   const isCashLike = category === "cash" || category === "bank";
   const currentValue = watch("currentValue");
 
+  const { data: allAssets } = useQuery<Asset[]>({
+    queryKey: ["assets"],
+    queryFn: async () => (await api.get("/assets")).data,
+    enabled: !isCashLike,
+  });
+
+  const liquidAssets = (allAssets ?? []).filter((a) => a.liquidity === "liquid");
+
   useEffect(() => {
     if (isCashLike && currentValue != null) {
       setValue("purchaseValue", currentValue);
@@ -65,13 +77,14 @@ export function AssetForm({
   }, [isCashLike, currentValue, setValue]);
 
   function handleValid(data: Record<string, unknown>) {
-    const d = data as { purchaseValue?: number; currentValue?: number; category?: string };
+    const d = data as { purchaseValue?: number; currentValue?: number; category?: string; payFromAssetId?: string };
     const balance = isCashLike ? Number(d.currentValue ?? d.purchaseValue ?? 0) : Number(d.purchaseValue ?? 0);
     const payload: AssetInput = {
       ...(data as AssetInput),
       purchaseValue: balance,
       currentValue: balance,
       liquidity: LIQUIDITY_MAP[d.category ?? "other"] ?? "illiquid",
+      payFromAssetId: d.payFromAssetId || undefined,
     };
     onSubmit(payload);
   }
@@ -184,6 +197,24 @@ export function AssetForm({
           className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
         />
       </div>
+
+      {!isCashLike && liquidAssets.length > 0 && (
+        <div>
+          <label className="mb-1 block text-sm text-slate-400">Fund from asset (optional)</label>
+          <select
+            {...register("payFromAssetId")}
+            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="">None</option>
+            {liquidAssets.map((a) => (
+              <option key={a.id} value={a.id}>
+                {assetDisplayName(a)}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">Deduct purchase cost from a liquid account</p>
+        </div>
+      )}
 
       <button
         type="submit"

@@ -2,6 +2,8 @@ import { z } from "zod";
 import { createCrudRouter } from "../utils/crudRouter.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "./helpers.js";
+import { queryOne, query } from "../db/pool.js";
+import { getRates, convert } from "../utils/currency.js";
 
 const category = z.enum(["cash", "bank", "real_estate", "vehicle", "other"]);
 
@@ -16,6 +18,7 @@ const createBase = z.object({
   purchaseDate: z.string(), // ISO date
   notes: z.string().optional(),
   liquidity: z.enum(["liquid", "semi_liquid", "illiquid"]).optional(),
+  payFromAssetId: z.string().uuid().optional(),
 });
 
 const createSchema = createBase.refine(
@@ -44,8 +47,42 @@ export const assetsRouter = createCrudRouter({
   columns,
   createSchema,
   updateSchema,
-  postMutation: async (userId, row) => {
+  postMutation: async (userId, row, input) => {
     await upsertDailySnapshot(userId);
     await upsertAssetHistory(userId, row);
+
+    const payFromAssetId = (input as Record<string, unknown>)?.payFromAssetId as string | undefined;
+    if (!payFromAssetId || !row) return;
+
+    const sourceAsset = await queryOne<{
+      id: string; current_value: string; currency: string;
+    }>(
+      `SELECT id, current_value, currency FROM assets WHERE id = $1 AND user_id = $2`,
+      [payFromAssetId, userId]
+    );
+    if (!sourceAsset) return;
+
+    const targetCurrency = (row as Record<string, unknown>).currency as string ?? "EUR";
+    const sourceCurrency = sourceAsset.currency ?? "EUR";
+    const amount = Number((row as Record<string, unknown>).current_value ?? 0);
+
+    let converted = amount;
+    if (sourceCurrency !== targetCurrency) {
+      const rates = await getRates(targetCurrency);
+      converted = convert(amount, sourceCurrency, targetCurrency, rates);
+    }
+
+    const newSourceValue = Math.max(0, Number(sourceAsset.current_value) - amount);
+
+    await query(`UPDATE assets SET current_value = $1 WHERE id = $2`, [newSourceValue, payFromAssetId]);
+    await upsertAssetHistory(userId, { id: payFromAssetId, current_value: newSourceValue });
+
+    await query(
+      `INSERT INTO asset_transfers (user_id, from_asset_id, to_asset_id, amount, from_currency, to_currency, converted_amount)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [userId, payFromAssetId, row.id, amount, sourceCurrency, targetCurrency, converted]
+    );
+
+    await upsertDailySnapshot(userId);
   },
 });
