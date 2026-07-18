@@ -52,7 +52,7 @@ export function AssetForm({
     const payload: AssetInput = {
       ...(data as AssetInput),
       purchaseValue: balance,
-      currentValue: isCashLike ? balance : Number(d.currentValue ?? 0),
+      currentValue: balance,
     };
     onSubmit(payload);
   }
@@ -95,40 +95,24 @@ export function AssetForm({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="mb-1 block text-sm text-slate-400">
-            {isCashLike ? "Balance" : "Purchase value"}
-          </label>
-          <input
-            type="number"
-            step="any"
-            {...register(isCashLike ? "currentValue" : "purchaseValue")}
-            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-          />
-          {isCashLike ? (
-            errors.currentValue && (
-              <p className="mt-1 text-xs text-rose-400">{errors.currentValue.message}</p>
-            )
-          ) : (
-            errors.purchaseValue && (
-              <p className="mt-1 text-xs text-rose-400">{errors.purchaseValue.message}</p>
-            )
-          )}
-        </div>
-        {!isCashLike && (
-          <div>
-            <label className="mb-1 block text-sm text-slate-400">Current value</label>
-            <input
-              type="number"
-              step="any"
-              {...register("currentValue")}
-              className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-            />
-            {errors.currentValue && (
-              <p className="mt-1 text-xs text-rose-400">{errors.currentValue.message}</p>
-            )}
-          </div>
+      <div>
+        <label className="mb-1 block text-sm text-slate-400">
+          {isCashLike ? "Balance" : "Purchase value"}
+        </label>
+        <input
+          type="number"
+          step="any"
+          {...register(isCashLike ? "currentValue" : "purchaseValue")}
+          className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+        />
+        {isCashLike ? (
+          errors.currentValue && (
+            <p className="mt-1 text-xs text-rose-400">{errors.currentValue.message}</p>
+          )
+        ) : (
+          errors.purchaseValue && (
+            <p className="mt-1 text-xs text-rose-400">{errors.purchaseValue.message}</p>
+          )
         )}
       </div>
 

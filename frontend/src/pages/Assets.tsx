@@ -10,7 +10,6 @@ import { AssetForm } from "../components/forms/AssetForm";
 import { TransferModal } from "../components/TransferModal";
 import type { AssetInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { expenseLabel } from "../lib/expenseLabels";
 import { incomeLabel } from "../lib/incomeLabels";
 
@@ -48,7 +47,7 @@ function AssetRow({
     queryKey: ["asset-history", asset.id],
     queryFn: async () =>
       (await api.get("/assets/history", { params: { assetId: asset.id } })).data,
-    enabled: expanded,
+    enabled: expanded && isCash,
     staleTime: 5 * 60_000,
   });
 
@@ -106,13 +105,17 @@ function AssetRow({
     <>
       <tr className="text-slate-200">
         <td className="px-4 py-3">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-2 text-left hover:text-white transition-colors"
-          >
-            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            {assetDisplayName(asset)}
-          </button>
+          {isCash ? (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-2 text-left hover:text-white transition-colors"
+            >
+              {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {assetDisplayName(asset)}
+            </button>
+          ) : (
+            <span>{assetDisplayName(asset)}</span>
+          )}
         </td>
         <td className="px-4 py-3 text-slate-400">
           {asset.category === "cash" ? "Cash" : asset.category === "bank" ? "Bank" : asset.category === "real_estate" ? "Real Estate" : asset.category === "vehicle" ? "Vehicle" : "Other"}
@@ -134,12 +137,10 @@ function AssetRow({
           </button>
         </td>
       </tr>
-      {expanded && (
+      {expanded && isCash && (
         <tr>
           <td colSpan={4} className="px-4 pb-3">
             <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-              {isCash ? (
-                <>
                   <div className="grid grid-cols-3 gap-4 text-sm mb-4">
                     <div>
                       <p className="text-slate-500 mb-1">Balance</p>
@@ -187,75 +188,6 @@ function AssetRow({
                       No linked transactions yet. Select this account when recording expenses or income.
                     </p>
                   )}
-                </>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                    <div>
-                      <p className="text-slate-500 mb-1">Purchase value</p>
-                      <p className="text-white font-medium">{format(asset.purchaseValue, asset.currency)}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500 mb-1">Current value</p>
-                      <p className="text-white font-medium">{format(asset.currentValue, asset.currency)}</p>
-                    </div>
-                  </div>
-
-                  {history && history.length > 1 && (
-                    <div className="pt-3 border-t border-slate-800">
-                      <p className="text-xs text-slate-500 mb-2">Value over time</p>
-                      <ResponsiveContainer width="100%" height={160}>
-                        <LineChart data={history}>
-                          <XAxis
-                            dataKey="date"
-                            tickFormatter={(d: string) => {
-                              const date = new Date(d + "T00:00:00");
-                              return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-                            }}
-                            tick={{ fill: "#64748b", fontSize: 11 }}
-                            axisLine={false}
-                            tickLine={false}
-                          />
-                          <YAxis
-                            tickFormatter={(v: number) => format(v, asset.currency).replace(/[\d.,]/g, "")}
-                            tick={{ fill: "#64748b", fontSize: 11 }}
-                            axisLine={false}
-                            tickLine={false}
-                            width={40}
-                          />
-                          <Tooltip
-                            formatter={(value) => format(Number(value), asset.currency)}
-                            labelFormatter={(label) => {
-                              const d = String(label);
-                              return new Date(d + "T00:00:00").toLocaleDateString();
-                            }}
-                            contentStyle={{
-                              backgroundColor: "#1e293b",
-                              border: "1px solid #334155",
-                              borderRadius: "8px",
-                              fontSize: 12,
-                            }}
-                            labelStyle={{ color: "#94a3b8" }}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="value"
-                            stroke="#10b981"
-                            strokeWidth={2}
-                            dot={false}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-
-                  {history && history.length <= 1 && (
-                    <p className="pt-3 border-t border-slate-800 text-xs text-slate-500">
-                      Value history will appear here as you update this asset.
-                    </p>
-                  )}
-                </>
-              )}
             </div>
           </td>
         </tr>
