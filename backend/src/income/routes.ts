@@ -3,6 +3,7 @@ import { createCrudRouter } from "../utils/crudRouter.js";
 import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "../assets/helpers.js";
+import { getRates, convert } from "../utils/currency.js";
 
 const category = z.enum([
   "salary", "bonus", "commission", "overtime",
@@ -41,16 +42,21 @@ async function handleAssetAddition(userId: string, input: Record<string, unknown
   const assetId = input.assetId as string | undefined;
   const frequency = input.frequency as string | undefined;
   const amount = Number(input.amount ?? 0);
+  const incomeCurrency = (input.currency as string) ?? "EUR";
 
   if (!assetId || frequency !== "one_time" || amount <= 0) return;
 
-  const asset = await queryOne<{ id: string; current_value: number; category: string }>(
-    `SELECT id, current_value, category FROM assets WHERE id = $1 AND user_id = $2`,
+  const asset = await queryOne<{ id: string; current_value: number; category: string; currency: string }>(
+    `SELECT id, current_value, category, currency FROM assets WHERE id = $1 AND user_id = $2`,
     [assetId, userId]
   );
   if (!asset) return;
 
-  const newVal = Number(asset.current_value) + amount;
+  const assetCurrency = asset.currency ?? "EUR";
+  const rates = await getRates(assetCurrency);
+  const converted = convert(amount, incomeCurrency, assetCurrency, rates);
+
+  const newVal = Number(asset.current_value) + converted;
 
   await query(
     `UPDATE assets SET current_value = $1 WHERE id = $2`,
