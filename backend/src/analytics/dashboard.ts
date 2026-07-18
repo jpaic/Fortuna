@@ -97,9 +97,6 @@ analyticsRouter.get(
         default:        return 0; // one_time
       }
     };
-    const monthlyIncome = fIncome.reduce((s, i) => s + normalize(c(Number(i.amount), i.currency), i.frequency), 0);
-    const monthlyExpenses = fExpenses.reduce((s, e) => s + normalize(c(Number(e.amount), e.currency), e.frequency), 0);
-    const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
 
     // ── Net worth history ─────────────────────────────────────
     const netWorthHistory = history.map((h) => ({
@@ -193,6 +190,12 @@ analyticsRouter.get(
       income: round2(monthIncomeMap.get(m.key) ?? 0),
       expenses: round2(monthExpenseMap.get(m.key) ?? 0),
     }));
+
+    // KPIs: current month totals (includes one-time items in that month)
+    const currentMonthKey = monthKeys[monthKeys.length - 1];
+    const monthlyIncome = monthIncomeMap.get(currentMonthKey) ?? 0;
+    const monthlyExpenses = monthExpenseMap.get(currentMonthKey) ?? 0;
+    const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
 
     // ── Expense breakdown by category (normalized to monthly) ─
     const expenseCatMap = new Map<string, number>();

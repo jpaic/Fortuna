@@ -63,7 +63,7 @@ function AssetRow({
 
   const firstVal = history && history.length > 0 ? history[0].value : null;
   const lastVal = history && history.length > 0 ? history[history.length - 1].value : null;
-  const totalChange = firstVal != null && lastVal != null ? lastVal - firstVal : null;
+  const totalChange = firstVal != null && lastVal != null && firstVal !== lastVal ? lastVal - firstVal : null;
   const totalChangePct = firstVal && firstVal !== 0 && totalChange != null
     ? (totalChange / firstVal) * 100
     : null;
