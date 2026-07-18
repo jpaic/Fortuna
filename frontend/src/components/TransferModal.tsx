@@ -26,7 +26,7 @@ export function TransferModal({
   const targets = (assets ?? []).filter(
     (a) =>
       a.id !== sourceAsset.id &&
-      (a.category === "cash" || a.category === "bank")
+      a.liquidity === "liquid"
   );
 
   const transfer = useMutation({

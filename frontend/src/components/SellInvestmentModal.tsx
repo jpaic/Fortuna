@@ -29,7 +29,7 @@ export function SellInvestmentModal({
     queryFn: async () => (await api.get("/assets")).data,
   });
 
-  const payAssets = cashAssets?.filter((a) => a.category === "cash" || a.category === "bank") ?? [];
+  const payAssets = cashAssets?.filter((a) => a.liquidity === "liquid") ?? [];
   const qty = Number(quantity) || 0;
   const maxQty = Number(investment.quantity);
   const proceeds = qty * Number(investment.currentPrice);

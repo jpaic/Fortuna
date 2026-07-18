@@ -15,6 +15,8 @@ export interface Asset {
   name: string;
   category: AssetCategory;
   bankName?: string;
+  subCategory?: string;
+  liquidity: "liquid" | "semi_liquid" | "illiquid";
   purchaseValue: number;
   currentValue: number;
   currency: string;

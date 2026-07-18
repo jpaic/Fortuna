@@ -68,7 +68,7 @@ export function InvestmentForm({
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [ticker, type, currency, setValue]);
 
-  const payFromAssets = cashAssets?.filter((a) => a.category === "cash" || a.category === "bank") ?? [];
+  const payFromAssets = cashAssets?.filter((a) => a.liquidity === "liquid") ?? [];
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

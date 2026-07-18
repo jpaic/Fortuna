@@ -14,6 +14,24 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+const BANK_SUB_CATEGORIES = ["checking", "savings", "money_market", "cd", "credit_card"] as const;
+
+const BANK_SUB_LABELS: Record<string, string> = {
+  checking: "Checking account",
+  savings: "Savings account",
+  money_market: "Money market",
+  cd: "Certificate of deposit",
+  credit_card: "Credit card",
+};
+
+const LIQUIDITY_MAP: Record<string, "liquid" | "semi_liquid" | "illiquid"> = {
+  cash: "liquid",
+  bank: "liquid",
+  real_estate: "illiquid",
+  vehicle: "illiquid",
+  other: "illiquid",
+};
+
 export function AssetForm({
   defaultValues,
   onSubmit,
@@ -47,12 +65,13 @@ export function AssetForm({
   }, [isCashLike, currentValue, setValue]);
 
   function handleValid(data: Record<string, unknown>) {
-    const d = data as { purchaseValue?: number; currentValue?: number };
+    const d = data as { purchaseValue?: number; currentValue?: number; category?: string };
     const balance = isCashLike ? Number(d.currentValue ?? d.purchaseValue ?? 0) : Number(d.purchaseValue ?? 0);
     const payload: AssetInput = {
       ...(data as AssetInput),
       purchaseValue: balance,
       currentValue: balance,
+      liquidity: LIQUIDITY_MAP[d.category ?? "other"] ?? "illiquid",
     };
     onSubmit(payload);
   }
@@ -92,6 +111,23 @@ export function AssetForm({
             placeholder="Chase, Revolut, Wise, …"
           />
           {errors.bankName && <p className="mt-1 text-xs text-rose-400">{errors.bankName.message}</p>}
+        </div>
+      )}
+
+      {category === "bank" && (
+        <div>
+          <label className="mb-1 block text-sm text-slate-400">Account type</label>
+          <select
+            {...register("subCategory")}
+            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="">Select type…</option>
+            {BANK_SUB_CATEGORIES.map((sc) => (
+              <option key={sc} value={sc}>
+                {BANK_SUB_LABELS[sc]}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 

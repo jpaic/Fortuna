@@ -44,26 +44,26 @@ function AssetRow({
   format: (value: number, currency: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const isCash = asset.category === "cash" || asset.category === "bank";
+  const isLiquid = asset.liquidity === "liquid";
 
   const { data: history } = useQuery<AssetHistoryPoint[]>({
     queryKey: ["asset-history", asset.id],
     queryFn: async () =>
       (await api.get("/assets/history", { params: { assetId: asset.id } })).data,
-    enabled: expanded && isCash,
+    enabled: expanded && isLiquid,
     staleTime: 5 * 60_000,
   });
 
   const { data: expenses } = useQuery<Expense[]>({
     queryKey: ["assets", asset.id, "expenses"],
     queryFn: async () => (await api.get("/expenses")).data,
-    enabled: expanded && isCash,
+    enabled: expanded && isLiquid,
   });
 
   const { data: incomes } = useQuery<Income[]>({
     queryKey: ["assets", asset.id, "incomes"],
     queryFn: async () => (await api.get("/income")).data,
-    enabled: expanded && isCash,
+    enabled: expanded && isLiquid,
   });
 
   const { data: transfers } = useQuery<{
@@ -76,7 +76,7 @@ function AssetRow({
   }[]>({
     queryKey: ["assets", asset.id, "transfers"],
     queryFn: async () => (await api.get("/assets/transfer", { params: { assetId: asset.id } })).data,
-    enabled: expanded && isCash,
+    enabled: expanded && isLiquid,
   });
 
   const now = new Date();
@@ -99,21 +99,21 @@ function AssetRow({
   }
 
   const linkedTxns: LinkedTransaction[] = [];
-  if (isCash && expenses) {
+  if (isLiquid && expenses) {
     for (const e of expenses) {
       if ((e as any).assetId === asset.id || (e as any).asset_id === asset.id) {
         linkedTxns.push({ type: "expense", category: e.category, amount: -e.amount, currency: e.currency, date: e.date, notes: e.notes });
       }
     }
   }
-  if (isCash && incomes) {
+  if (isLiquid && incomes) {
     for (const i of incomes) {
       if ((i as any).assetId === asset.id || (i as any).asset_id === asset.id) {
         linkedTxns.push({ type: "income", category: i.category, amount: i.amount, currency: i.currency, date: i.date, notes: i.notes });
       }
     }
   }
-  if (isCash && transfers) {
+  if (isLiquid && transfers) {
     for (const t of transfers) {
       linkedTxns.push({
         type: "transfer",
@@ -133,7 +133,7 @@ function AssetRow({
     <>
       <tr className="text-slate-200">
         <td className="px-4 py-3">
-          {isCash ? (
+          {isLiquid ? (
             <button
               onClick={() => setExpanded(!expanded)}
               className="flex items-center gap-2 text-left hover:text-white transition-colors"
@@ -146,13 +146,19 @@ function AssetRow({
           )}
         </td>
         <td className="px-4 py-3 text-slate-400">
-          {asset.category === "cash" ? "Cash" : asset.category === "bank" ? "Bank" : asset.category === "real_estate" ? "Real Estate" : asset.category === "vehicle" ? "Vehicle" : "Other"}
+          {asset.category === "bank" && asset.subCategory
+            ? asset.subCategory.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+            : asset.category === "cash" ? "Cash"
+            : asset.category === "bank" ? "Bank"
+            : asset.category === "real_estate" ? "Real Estate"
+            : asset.category === "vehicle" ? "Vehicle"
+            : "Other"}
         </td>
         <td className="px-4 py-3">
           {format(asset.currentValue, asset.currency)}
         </td>
         <td className="px-4 py-3 text-right">
-          {isCash && (
+          {isLiquid && (
             <button onClick={() => onTransfer(asset)} className="text-slate-500 hover:text-blue-400 mr-2" title="Transfer funds">
               <ArrowLeftRight size={16} />
             </button>
@@ -165,7 +171,7 @@ function AssetRow({
           </button>
         </td>
       </tr>
-      {expanded && isCash && (
+      {expanded && isLiquid && (
         <tr>
           <td colSpan={4} className="px-4 pb-3">
             <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
@@ -299,11 +305,11 @@ export function Assets() {
   const { format, displayCurrency } = useCurrency();
 
   const liquidAssets = useMemo(
-    () => (list.data ?? []).filter((a) => a.category === "cash" || a.category === "bank"),
+    () => (list.data ?? []).filter((a) => a.liquidity === "liquid"),
     [list.data]
   );
   const nonLiquidAssets = useMemo(
-    () => (list.data ?? []).filter((a) => a.category !== "cash" && a.category !== "bank"),
+    () => (list.data ?? []).filter((a) => a.liquidity !== "liquid"),
     [list.data]
   );
 
@@ -318,8 +324,7 @@ export function Assets() {
 
   async function handleSubmit(data: AssetInput) {
     if (editing) {
-      const isCash = editing.category === "cash" || editing.category === "bank";
-      const payload = isCash
+      const payload = editing.liquidity === "liquid"
         ? { ...data, purchaseValue: editing.purchaseValue }
         : data;
       await update.mutateAsync({ id: editing.id, payload });
@@ -446,6 +451,8 @@ export function Assets() {
               name: editing.name,
               category: editing.category,
               bankName: editing.bankName,
+              subCategory: editing.subCategory,
+              liquidity: editing.liquidity,
               purchaseValue: editing.purchaseValue,
               currentValue: editing.currentValue,
               currency: editing.currency,

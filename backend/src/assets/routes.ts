@@ -9,11 +9,13 @@ const createBase = z.object({
   name: z.string().min(1),
   category,
   bankName: z.string().optional(),
+  subCategory: z.string().optional(),
   purchaseValue: z.number().min(0),
   currentValue: z.number().min(0),
   currency: z.string().length(3).default("EUR"),
   purchaseDate: z.string(), // ISO date
   notes: z.string().optional(),
+  liquidity: z.enum(["liquid", "semi_liquid", "illiquid"]).optional(),
 });
 
 const createSchema = createBase.refine(
@@ -28,6 +30,8 @@ const columns = {
   name: "name",
   category: "category",
   bankName: "bank_name",
+  subCategory: "sub_category",
+  liquidity: "liquidity",
   purchaseValue: "purchase_value",
   currentValue: "current_value",
   currency: "currency",
