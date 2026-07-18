@@ -12,6 +12,7 @@ import { authRouter } from "./auth/routes.js";
 import { usersRouter } from "./users/routes.js";
 import { assetsRouter } from "./assets/routes.js";
 import { assetHistoryRouter } from "./assets/historyRoutes.js";
+import { transferRouter } from "./assets/transferRoutes.js";
 import { investmentsRouter } from "./investments/routes.js";
 import { investmentSellRouter } from "./investments/sellRoutes.js";
 import { investmentBuyRouter } from "./investments/buyRoutes.js";
@@ -63,6 +64,7 @@ const authLimiter = rateLimitFn({
 app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/assets/history", assetHistoryRouter);
+app.use("/api/assets/transfer", transferRouter);
 app.use("/api/assets", assetsRouter);
 app.use("/api/investments/history", investmentHistoryRouter);
 app.use("/api/investments", investmentsRouter);

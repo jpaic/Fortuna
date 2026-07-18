@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, ArrowLeftRight } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
@@ -7,6 +7,7 @@ import { assetDisplayName } from "../lib/assetDisplayName";
 import type { Asset, Expense, Income } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { AssetForm } from "../components/forms/AssetForm";
+import { TransferModal } from "../components/TransferModal";
 import type { AssetInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -31,11 +32,13 @@ function AssetRow({
   asset,
   onEdit,
   onRemove,
+  onTransfer,
   format,
 }: {
   asset: Asset;
   onEdit: (a: Asset) => void;
   onRemove: (id: string) => void;
+  onTransfer: (a: Asset) => void;
   format: (value: number, currency: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -124,6 +127,11 @@ function AssetRow({
           ) : "—"}
         </td>
         <td className="px-4 py-3 text-right">
+          {isCash && (
+            <button onClick={() => onTransfer(asset)} className="text-slate-500 hover:text-blue-400 mr-2" title="Transfer funds">
+              <ArrowLeftRight size={16} />
+            </button>
+          )}
           <button onClick={() => onEdit(asset)} className="text-slate-500 hover:text-emerald-400 mr-2">
             <Pencil size={16} />
           </button>
@@ -275,6 +283,7 @@ export function Assets() {
   const { list, create, update, remove } = useResource<Asset>("assets");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Asset | null>(null);
+  const [transferring, setTransferring] = useState<Asset | null>(null);
   const { format, displayCurrency } = useCurrency();
 
   async function handleSubmit(data: AssetInput) {
@@ -334,6 +343,7 @@ export function Assets() {
                 asset={asset}
                 onEdit={openEdit}
                 onRemove={(id) => remove.mutate(id)}
+                onTransfer={setTransferring}
                 format={format}
               />
             ))}
@@ -366,6 +376,13 @@ export function Assets() {
             } : undefined}
           />
         </Modal>
+      )}
+
+      {transferring && (
+        <TransferModal
+          sourceAsset={transferring}
+          onClose={() => setTransferring(null)}
+        />
       )}
     </div>
   );
