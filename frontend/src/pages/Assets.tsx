@@ -44,26 +44,26 @@ function AssetRow({
   format: (value: number, currency: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const isLiquid = asset.liquidity === "liquid";
+  const canExpand = asset.liquidity === "liquid" || asset.liquidity === "semi_liquid";
 
   const { data: history } = useQuery<AssetHistoryPoint[]>({
     queryKey: ["asset-history", asset.id],
     queryFn: async () =>
       (await api.get("/assets/history", { params: { assetId: asset.id } })).data,
-    enabled: expanded && isLiquid,
+    enabled: expanded && canExpand,
     staleTime: 5 * 60_000,
   });
 
   const { data: expenses } = useQuery<Expense[]>({
     queryKey: ["assets", asset.id, "expenses"],
     queryFn: async () => (await api.get("/expenses")).data,
-    enabled: expanded && isLiquid,
+    enabled: expanded && canExpand,
   });
 
   const { data: incomes } = useQuery<Income[]>({
     queryKey: ["assets", asset.id, "incomes"],
     queryFn: async () => (await api.get("/income")).data,
-    enabled: expanded && isLiquid,
+    enabled: expanded && canExpand,
   });
 
   const { data: transfers } = useQuery<{
@@ -76,7 +76,7 @@ function AssetRow({
   }[]>({
     queryKey: ["assets", asset.id, "transfers"],
     queryFn: async () => (await api.get("/assets/transfer", { params: { assetId: asset.id } })).data,
-    enabled: expanded && isLiquid,
+    enabled: expanded && canExpand,
   });
 
   const now = new Date();
@@ -99,21 +99,21 @@ function AssetRow({
   }
 
   const linkedTxns: LinkedTransaction[] = [];
-  if (isLiquid && expenses) {
+  if (canExpand && expenses) {
     for (const e of expenses) {
       if ((e as any).assetId === asset.id || (e as any).asset_id === asset.id) {
         linkedTxns.push({ type: "expense", category: e.category, amount: -e.amount, currency: e.currency, date: e.date, notes: e.notes });
       }
     }
   }
-  if (isLiquid && incomes) {
+  if (canExpand && incomes) {
     for (const i of incomes) {
       if ((i as any).assetId === asset.id || (i as any).asset_id === asset.id) {
         linkedTxns.push({ type: "income", category: i.category, amount: i.amount, currency: i.currency, date: i.date, notes: i.notes });
       }
     }
   }
-  if (isLiquid && transfers) {
+  if (canExpand && transfers) {
     for (const t of transfers) {
       linkedTxns.push({
         type: "transfer",
@@ -133,7 +133,7 @@ function AssetRow({
     <>
       <tr className="text-slate-200">
         <td className="px-4 py-3">
-          {isLiquid ? (
+          {canExpand ? (
             <button
               onClick={() => setExpanded(!expanded)}
               className="flex items-center gap-2 text-left hover:text-white transition-colors"
@@ -158,7 +158,7 @@ function AssetRow({
           {format(asset.currentValue, asset.currency)}
         </td>
         <td className="px-4 py-3 text-right">
-          {isLiquid && (
+          {canExpand && (
             <button onClick={() => onTransfer(asset)} className="text-slate-500 hover:text-blue-400 mr-2" title="Transfer funds">
               <ArrowLeftRight size={16} />
             </button>
@@ -171,7 +171,7 @@ function AssetRow({
           </button>
         </td>
       </tr>
-      {expanded && isLiquid && (
+      {expanded && canExpand && (
         <tr>
           <td colSpan={4} className="px-4 pb-3">
             <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
@@ -238,14 +238,16 @@ function AssetRow({
   );
 }
 
-function LiquidityChart({ liquid, nonLiquid, format }: { liquid: number; nonLiquid: number; format: (v: number, c: string) => string }) {
+function LiquidityChart({ liquid, semiLiquid, nonLiquid, format }: { liquid: number; semiLiquid: number; nonLiquid: number; format: (v: number, c: string) => string }) {
   const data = [
     { name: "Liquid", value: liquid },
+    { name: "Semi-liquid", value: semiLiquid },
     { name: "Non-liquid", value: nonLiquid },
   ].filter((d) => d.value > 0);
 
-  const total = liquid + nonLiquid;
+  const total = liquid + semiLiquid + nonLiquid;
   const liqPct = total > 0 ? ((liquid / total) * 100).toFixed(1) : "0";
+  const semiPct = total > 0 ? ((semiLiquid / total) * 100).toFixed(1) : "0";
   const nonLiqPct = total > 0 ? ((nonLiquid / total) * 100).toFixed(1) : "0";
 
   if (data.length === 0) return null;
@@ -266,6 +268,7 @@ function LiquidityChart({ liquid, nonLiquid, format }: { liquid: number; nonLiqu
               stroke="none"
             >
               <Cell fill="#10b981" />
+              <Cell fill="#eab308" />
               <Cell fill="#6366f1" />
             </Pie>
             <Tooltip
@@ -285,6 +288,11 @@ function LiquidityChart({ liquid, nonLiquid, format }: { liquid: number; nonLiqu
             <span className="inline-block h-3 w-3 rounded-full bg-emerald-500" />
             <span className="text-slate-400">Liquid</span>
             <span className="text-white font-medium ml-auto">{format(liquid, "EUR")} ({liqPct}%)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-full bg-yellow-500" />
+            <span className="text-slate-400">Semi-liquid</span>
+            <span className="text-white font-medium ml-auto">{format(semiLiquid, "EUR")} ({semiPct}%)</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full bg-indigo-500" />
@@ -308,14 +316,22 @@ export function Assets() {
     () => (list.data ?? []).filter((a) => a.liquidity === "liquid"),
     [list.data]
   );
+  const semiLiquidAssets = useMemo(
+    () => (list.data ?? []).filter((a) => a.liquidity === "semi_liquid"),
+    [list.data]
+  );
   const nonLiquidAssets = useMemo(
-    () => (list.data ?? []).filter((a) => a.liquidity !== "liquid"),
+    () => (list.data ?? []).filter((a) => a.liquidity === "illiquid"),
     [list.data]
   );
 
   const liquidTotal = useMemo(
     () => liquidAssets.reduce((s, a) => s + a.currentValue, 0),
     [liquidAssets]
+  );
+  const semiLiquidTotal = useMemo(
+    () => semiLiquidAssets.reduce((s, a) => s + a.currentValue, 0),
+    [semiLiquidAssets]
   );
   const nonLiquidTotal = useMemo(
     () => nonLiquidAssets.reduce((s, a) => s + a.currentValue, 0),
@@ -399,6 +415,45 @@ export function Assets() {
         </div>
       </div>
 
+      {/* Semi-liquid assets */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-medium text-slate-400">Semi-liquid assets</h2>
+          <span className="text-sm text-white font-medium">{format(semiLiquidTotal, displayCurrency)}</span>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-900/60 text-slate-400">
+              <tr>
+                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Type</th>
+                <th className="px-4 py-3 font-medium">Value</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {semiLiquidAssets.map((asset) => (
+                <AssetRow
+                  key={asset.id}
+                  asset={asset}
+                  onEdit={openEdit}
+                  onRemove={(id) => remove.mutate(id)}
+                  onTransfer={setTransferring}
+                  format={format}
+                />
+              ))}
+              {semiLiquidAssets.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                    No semi-liquid assets yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Non-liquid assets */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -439,7 +494,7 @@ export function Assets() {
       </div>
 
       {/* Liquidity chart */}
-      <LiquidityChart liquid={liquidTotal} nonLiquid={nonLiquidTotal} format={format} />
+      <LiquidityChart liquid={liquidTotal} semiLiquid={semiLiquidTotal} nonLiquid={nonLiquidTotal} format={format} />
 
       {showForm && (
         <Modal title={editing ? "Edit asset" : "Add asset"} onClose={closeModal}>
