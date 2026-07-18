@@ -40,11 +40,12 @@ function AssetRow({
   asset: Asset;
   onEdit: (a: Asset) => void;
   onRemove: (id: string) => void;
-  onTransfer: (a: Asset) => void;
+  onTransfer: (a: Asset, closeAccount?: boolean) => void;
   format: (value: number, currency: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const canExpand = asset.liquidity === "liquid" || asset.liquidity === "semi_liquid";
+  const canExpand = asset.liquidity === "liquid";
+  const isCloseAccount = asset.liquidity === "semi_liquid";
 
   const { data: history } = useQuery<AssetHistoryPoint[]>({
     queryKey: ["asset-history", asset.id],
@@ -159,7 +160,12 @@ function AssetRow({
         </td>
         <td className="px-4 py-3 text-right">
           {canExpand && (
-            <button onClick={() => onTransfer(asset)} className="text-slate-500 hover:text-blue-400 mr-2" title="Transfer funds">
+            <button onClick={() => onTransfer(asset, false)} className="text-slate-500 hover:text-blue-400 mr-2" title="Transfer funds">
+              <ArrowLeftRight size={16} />
+            </button>
+          )}
+          {isCloseAccount && (
+            <button onClick={() => onTransfer(asset, true)} className="text-slate-500 hover:text-amber-400 mr-2" title="Close account">
               <ArrowLeftRight size={16} />
             </button>
           )}
@@ -310,6 +316,12 @@ export function Assets() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Asset | null>(null);
   const [transferring, setTransferring] = useState<Asset | null>(null);
+  const [closeAccount, setCloseAccount] = useState(false);
+
+  function openTransfer(asset: Asset, isClose = false) {
+    setTransferring(asset);
+    setCloseAccount(isClose);
+  }
   const { format, displayCurrency } = useCurrency();
 
   const liquidAssets = useMemo(
@@ -399,7 +411,7 @@ export function Assets() {
                   asset={asset}
                   onEdit={openEdit}
                   onRemove={(id) => remove.mutate(id)}
-                  onTransfer={setTransferring}
+                  onTransfer={openTransfer}
                   format={format}
                 />
               ))}
@@ -438,7 +450,7 @@ export function Assets() {
                   asset={asset}
                   onEdit={openEdit}
                   onRemove={(id) => remove.mutate(id)}
-                  onTransfer={setTransferring}
+                  onTransfer={openTransfer}
                   format={format}
                 />
               ))}
@@ -477,7 +489,7 @@ export function Assets() {
                   asset={asset}
                   onEdit={openEdit}
                   onRemove={(id) => remove.mutate(id)}
-                  onTransfer={setTransferring}
+                  onTransfer={openTransfer}
                   format={format}
                 />
               ))}
@@ -521,7 +533,8 @@ export function Assets() {
       {transferring && (
         <TransferModal
           sourceAsset={transferring}
-          onClose={() => setTransferring(null)}
+          closeAccount={closeAccount}
+          onClose={() => { setTransferring(null); setCloseAccount(false); }}
         />
       )}
     </div>

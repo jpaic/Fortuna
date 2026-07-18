@@ -8,15 +8,17 @@ import type { Asset } from "../types";
 
 export function TransferModal({
   sourceAsset,
+  closeAccount = false,
   onClose,
 }: {
   sourceAsset: Asset;
+  closeAccount?: boolean;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
   const { format } = useCurrency();
   const [targetId, setTargetId] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(closeAccount ? String(sourceAsset.currentValue) : "");
 
   const { data: assets } = useQuery<Asset[]>({
     queryKey: ["assets"],
@@ -48,10 +50,10 @@ export function TransferModal({
   const isValid = targetId && numAmount > 0 && numAmount <= sourceAsset.currentValue;
 
   return (
-    <Modal title="Transfer funds" onClose={onClose}>
+    <Modal title={closeAccount ? "Close account" : "Transfer funds"} onClose={onClose}>
       <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm text-slate-400">From</label>
+          <label className="mb-1 block text-sm text-slate-400">{closeAccount ? "Closing" : "From"}</label>
           <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm text-white">
             {assetDisplayName(sourceAsset)}
             <span className="ml-2 text-slate-500">
@@ -61,7 +63,7 @@ export function TransferModal({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm text-slate-400">To</label>
+          <label className="mb-1 block text-sm text-slate-400">{closeAccount ? "Transfer balance to" : "To"}</label>
           <select
             value={targetId}
             onChange={(e) => setTargetId(e.target.value)}
@@ -86,7 +88,8 @@ export function TransferModal({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder={format(0, sourceAsset.currency).replace("0", "")}
-            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+            disabled={closeAccount}
+            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
           />
           <p className="mt-1 text-xs text-slate-500">
             Balance: {format(sourceAsset.currentValue, sourceAsset.currency)}
@@ -113,7 +116,9 @@ export function TransferModal({
           disabled={!isValid || transfer.isPending}
           className="w-full rounded-lg bg-emerald-500 py-2 text-sm font-medium text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
         >
-          {transfer.isPending ? "Transferring…" : "Transfer"}
+          {transfer.isPending
+            ? (closeAccount ? "Closing…" : "Transferring…")
+            : (closeAccount ? "Close account" : "Transfer")}
         </button>
       </div>
     </Modal>
