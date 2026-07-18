@@ -48,6 +48,7 @@ function AssetRow({
     queryKey: ["asset-history", asset.id],
     queryFn: async () =>
       (await api.get("/assets/history", { params: { assetId: asset.id } })).data,
+    enabled: expanded,
     staleTime: 5 * 60_000,
   });
 
@@ -119,13 +120,6 @@ function AssetRow({
         <td className="px-4 py-3">
           {format(asset.currentValue, asset.currency)}
         </td>
-        <td className={`px-4 py-3 ${thirtyDayChangePct != null ? (thirtyDayChangePct >= 0 ? "text-emerald-400" : "text-rose-400") : "text-slate-500"}`}>
-          {thirtyDayChangePct != null ? (
-            <span>
-              {thirtyDayChangePct >= 0 ? "+" : ""}{thirtyDayChangePct.toFixed(1)}%
-            </span>
-          ) : "—"}
-        </td>
         <td className="px-4 py-3 text-right">
           {isCash && (
             <button onClick={() => onTransfer(asset)} className="text-slate-500 hover:text-blue-400 mr-2" title="Transfer funds">
@@ -142,14 +136,25 @@ function AssetRow({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={5} className="px-4 pb-3">
+          <td colSpan={4} className="px-4 pb-3">
             <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
               {isCash ? (
                 <>
-                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                  <div className="grid grid-cols-3 gap-4 text-sm mb-4">
                     <div>
                       <p className="text-slate-500 mb-1">Balance</p>
                       <p className="text-white font-medium text-lg">{format(asset.currentValue, asset.currency)}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 mb-1">30d change</p>
+                      {thirtyDayChange != null ? (
+                        <p className={`font-medium ${thirtyDayChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {thirtyDayChange >= 0 ? "+" : ""}{format(thirtyDayChange, asset.currency)}
+                          {thirtyDayChangePct != null && <span className="text-xs ml-1">({thirtyDayChangePct >= 0 ? "+" : ""}{thirtyDayChangePct.toFixed(1)}%)</span>}
+                        </p>
+                      ) : (
+                        <p className="text-slate-500">—</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-slate-500 mb-1">Linked transactions</p>
@@ -185,7 +190,7 @@ function AssetRow({
                 </>
               ) : (
                 <>
-                  <div className="grid grid-cols-4 gap-4 text-sm mb-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                     <div>
                       <p className="text-slate-500 mb-1">Purchase value</p>
                       <p className="text-white font-medium">{format(asset.purchaseValue, asset.currency)}</p>
@@ -193,26 +198,6 @@ function AssetRow({
                     <div>
                       <p className="text-slate-500 mb-1">Current value</p>
                       <p className="text-white font-medium">{format(asset.currentValue, asset.currency)}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500 mb-1">30d change</p>
-                      {thirtyDayChange != null ? (
-                        <p className={`font-medium ${thirtyDayChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {thirtyDayChange >= 0 ? "+" : ""}{format(thirtyDayChange, asset.currency)}
-                        </p>
-                      ) : (
-                        <p className="text-slate-500">—</p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-slate-500 mb-1">30d %</p>
-                      {thirtyDayChangePct != null ? (
-                        <p className={`font-medium ${thirtyDayChangePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {thirtyDayChangePct >= 0 ? "+" : ""}{thirtyDayChangePct.toFixed(1)}%
-                        </p>
-                      ) : (
-                        <p className="text-slate-500">—</p>
-                      )}
                     </div>
                   </div>
 
@@ -332,7 +317,6 @@ export function Assets() {
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Value</th>
-              <th className="px-4 py-3 font-medium">Change</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -349,7 +333,7 @@ export function Assets() {
             ))}
             {list.data?.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
                   No assets yet. Add your first one to get started.
                 </td>
               </tr>
