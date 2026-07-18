@@ -395,12 +395,12 @@ export function Assets() {
           <span className="text-sm text-white font-medium">{format(liquidTotal, displayCurrency)}</span>
         </div>
         <div className="overflow-hidden rounded-xl border border-slate-800">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm table-fixed">
             <thead className="bg-slate-900/60 text-slate-400">
               <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Value</th>
+                <th className="px-4 py-3 font-medium w-[40%]">Name</th>
+                <th className="px-4 py-3 font-medium w-28">Type</th>
+                <th className="px-4 py-3 font-medium w-32">Value</th>
                 <th className="px-4 py-3 w-24" />
               </tr>
             </thead>
@@ -434,12 +434,12 @@ export function Assets() {
           <span className="text-sm text-white font-medium">{format(semiLiquidTotal, displayCurrency)}</span>
         </div>
         <div className="overflow-hidden rounded-xl border border-slate-800">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm table-fixed">
             <thead className="bg-slate-900/60 text-slate-400">
               <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Value</th>
+                <th className="px-4 py-3 font-medium w-[40%]">Name</th>
+                <th className="px-4 py-3 font-medium w-28">Type</th>
+                <th className="px-4 py-3 font-medium w-32">Value</th>
                 <th className="px-4 py-3 w-24" />
               </tr>
             </thead>
@@ -473,12 +473,12 @@ export function Assets() {
           <span className="text-sm text-white font-medium">{format(nonLiquidTotal, displayCurrency)}</span>
         </div>
         <div className="overflow-hidden rounded-xl border border-slate-800">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm table-fixed">
             <thead className="bg-slate-900/60 text-slate-400">
               <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Value</th>
+                <th className="px-4 py-3 font-medium w-[40%]">Name</th>
+                <th className="px-4 py-3 font-medium w-28">Type</th>
+                <th className="px-4 py-3 font-medium w-32">Value</th>
                 <th className="px-4 py-3 w-24" />
               </tr>
             </thead>
