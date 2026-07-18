@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, ArrowLeftRight } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import type { AssetInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 import { expenseLabel } from "../lib/expenseLabels";
 import { incomeLabel } from "../lib/incomeLabels";
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 
 interface AssetHistoryPoint {
   date: string;
@@ -97,7 +98,6 @@ function AssetRow({
     }
   }
 
-  // Linked transactions for cash/bank assets
   const linkedTxns: LinkedTransaction[] = [];
   if (isCash && expenses) {
     for (const e of expenses) {
@@ -169,66 +169,125 @@ function AssetRow({
         <tr>
           <td colSpan={4} className="px-4 pb-3">
             <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-                  <div className="grid grid-cols-3 gap-4 text-sm mb-4">
-                    <div>
-                      <p className="text-slate-500 mb-1">Balance</p>
-                      <p className="text-white font-medium text-lg">{format(asset.currentValue, asset.currency)}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500 mb-1">30d change</p>
-                      {thirtyDayChange != null ? (
-                        <p className={`font-medium ${thirtyDayChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {thirtyDayChange >= 0 ? "+" : ""}{format(thirtyDayChange, asset.currency)}
-                          {thirtyDayChangePct != null && <span className="text-xs ml-1">({thirtyDayChangePct >= 0 ? "+" : ""}{thirtyDayChangePct.toFixed(1)}%)</span>}
-                        </p>
-                      ) : (
-                        <p className="text-slate-500">—</p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-slate-500 mb-1">Linked transactions</p>
-                      <p className="text-white font-medium">{linkedTxns.length}</p>
-                    </div>
-                  </div>
-
-                  {recentTxns.length > 0 && (
-                    <div className="pt-3 border-t border-slate-800">
-                      <p className="text-xs text-slate-500 mb-2">Recent activity</p>
-                      <div className="space-y-1.5">
-                        {recentTxns.map((tx, i) => (
-                          <div key={i} className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className={`inline-block h-1.5 w-1.5 rounded-full ${
-                                tx.type === "income" ? "bg-emerald-400" :
-                                tx.type === "transfer" ? "bg-blue-400" :
-                                "bg-rose-400"
-                              }`} />
-                              <span className="text-slate-400">{tx.date.slice(0, 10)}</span>
-                              <span className="text-slate-300">
-                                {tx.type === "income" && incomeLabel(tx.category)}
-                                {tx.type === "expense" && expenseLabel(tx.category)}
-                                {tx.type === "transfer" && `Transfer ${tx.transferDirection === "out" ? "to" : "from"} ${tx.transferOtherAsset}`}
-                              </span>
-                            </div>
-                            <span className={tx.amount >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                              {tx.amount >= 0 ? "+" : ""}{format(Math.abs(tx.amount), tx.currency)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {recentTxns.length === 0 && (
-                    <p className="pt-3 border-t border-slate-800 text-xs text-slate-500">
-                      No linked transactions yet. Select this account when recording expenses or income.
+              <div className="grid grid-cols-3 gap-4 text-sm mb-4">
+                <div>
+                  <p className="text-slate-500 mb-1">Balance</p>
+                  <p className="text-white font-medium text-lg">{format(asset.currentValue, asset.currency)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500 mb-1">30d change</p>
+                  {thirtyDayChange != null ? (
+                    <p className={`font-medium ${thirtyDayChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {thirtyDayChange >= 0 ? "+" : ""}{format(thirtyDayChange, asset.currency)}
+                      {thirtyDayChangePct != null && <span className="text-xs ml-1">({thirtyDayChangePct >= 0 ? "+" : ""}{thirtyDayChangePct.toFixed(1)}%)</span>}
                     </p>
+                  ) : (
+                    <p className="text-slate-500">—</p>
                   )}
+                </div>
+                <div>
+                  <p className="text-slate-500 mb-1">Linked transactions</p>
+                  <p className="text-white font-medium">{linkedTxns.length}</p>
+                </div>
+              </div>
+
+              {recentTxns.length > 0 && (
+                <div className="pt-3 border-t border-slate-800">
+                  <p className="text-xs text-slate-500 mb-2">Recent activity</p>
+                  <div className="space-y-1.5">
+                    {recentTxns.map((tx, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full ${
+                            tx.type === "income" ? "bg-emerald-400" :
+                            tx.type === "transfer" ? "bg-blue-400" :
+                            "bg-rose-400"
+                          }`} />
+                          <span className="text-slate-400">{tx.date.slice(0, 10)}</span>
+                          <span className="text-slate-300">
+                            {tx.type === "income" && incomeLabel(tx.category)}
+                            {tx.type === "expense" && expenseLabel(tx.category)}
+                            {tx.type === "transfer" && `Transfer ${tx.transferDirection === "out" ? "to" : "from"} ${tx.transferOtherAsset}`}
+                          </span>
+                        </div>
+                        <span className={tx.amount >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                          {tx.amount >= 0 ? "+" : ""}{format(Math.abs(tx.amount), tx.currency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {recentTxns.length === 0 && (
+                <p className="pt-3 border-t border-slate-800 text-xs text-slate-500">
+                  No linked transactions yet. Select this account when recording expenses or income.
+                </p>
+              )}
             </div>
           </td>
         </tr>
       )}
     </>
+  );
+}
+
+function LiquidityChart({ liquid, nonLiquid, format }: { liquid: number; nonLiquid: number; format: (v: number, c: string) => string }) {
+  const data = [
+    { name: "Liquid", value: liquid },
+    { name: "Non-liquid", value: nonLiquid },
+  ].filter((d) => d.value > 0);
+
+  const total = liquid + nonLiquid;
+  const liqPct = total > 0 ? ((liquid / total) * 100).toFixed(1) : "0";
+  const nonLiqPct = total > 0 ? ((nonLiquid / total) * 100).toFixed(1) : "0";
+
+  if (data.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+      <p className="text-sm font-medium text-slate-400 mb-3">Liquidity breakdown</p>
+      <div className="flex items-center gap-6">
+        <ResponsiveContainer width={160} height={160}>
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={40}
+              outerRadius={65}
+              paddingAngle={3}
+              stroke="none"
+            >
+              <Cell fill="#10b981" />
+              <Cell fill="#6366f1" />
+            </Pie>
+            <Tooltip
+              formatter={(value) => format(Number(value), "EUR")}
+              contentStyle={{
+                backgroundColor: "#1e293b",
+                border: "1px solid #334155",
+                borderRadius: "8px",
+                fontSize: 12,
+              }}
+              labelStyle={{ color: "#94a3b8" }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="space-y-3 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-full bg-emerald-500" />
+            <span className="text-slate-400">Liquid</span>
+            <span className="text-white font-medium ml-auto">{format(liquid, "EUR")} ({liqPct}%)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-full bg-indigo-500" />
+            <span className="text-slate-400">Non-liquid</span>
+            <span className="text-white font-medium ml-auto">{format(nonLiquid, "EUR")} ({nonLiqPct}%)</span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -238,6 +297,24 @@ export function Assets() {
   const [editing, setEditing] = useState<Asset | null>(null);
   const [transferring, setTransferring] = useState<Asset | null>(null);
   const { format, displayCurrency } = useCurrency();
+
+  const liquidAssets = useMemo(
+    () => (list.data ?? []).filter((a) => a.category === "cash" || a.category === "bank"),
+    [list.data]
+  );
+  const nonLiquidAssets = useMemo(
+    () => (list.data ?? []).filter((a) => a.category !== "cash" && a.category !== "bank"),
+    [list.data]
+  );
+
+  const liquidTotal = useMemo(
+    () => liquidAssets.reduce((s, a) => s + a.currentValue, 0),
+    [liquidAssets]
+  );
+  const nonLiquidTotal = useMemo(
+    () => nonLiquidAssets.reduce((s, a) => s + a.currentValue, 0),
+    [nonLiquidAssets]
+  );
 
   async function handleSubmit(data: AssetInput) {
     if (editing) {
@@ -278,37 +355,86 @@ export function Assets() {
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-800">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-900/60 text-slate-400">
-            <tr>
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Value</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {list.data?.map((asset) => (
-              <AssetRow
-                key={asset.id}
-                asset={asset}
-                onEdit={openEdit}
-                onRemove={(id) => remove.mutate(id)}
-                onTransfer={setTransferring}
-                format={format}
-              />
-            ))}
-            {list.data?.length === 0 && (
+      {/* Liquid assets */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-medium text-slate-400">Liquid assets</h2>
+          <span className="text-sm text-white font-medium">{format(liquidTotal, displayCurrency)}</span>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-900/60 text-slate-400">
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                  No assets yet. Add your first one to get started.
-                </td>
+                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Type</th>
+                <th className="px-4 py-3 font-medium">Value</th>
+                <th className="px-4 py-3" />
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {liquidAssets.map((asset) => (
+                <AssetRow
+                  key={asset.id}
+                  asset={asset}
+                  onEdit={openEdit}
+                  onRemove={(id) => remove.mutate(id)}
+                  onTransfer={setTransferring}
+                  format={format}
+                />
+              ))}
+              {liquidAssets.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                    No liquid assets yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Non-liquid assets */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-medium text-slate-400">Non-liquid assets</h2>
+          <span className="text-sm text-white font-medium">{format(nonLiquidTotal, displayCurrency)}</span>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-900/60 text-slate-400">
+              <tr>
+                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Type</th>
+                <th className="px-4 py-3 font-medium">Value</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {nonLiquidAssets.map((asset) => (
+                <AssetRow
+                  key={asset.id}
+                  asset={asset}
+                  onEdit={openEdit}
+                  onRemove={(id) => remove.mutate(id)}
+                  onTransfer={setTransferring}
+                  format={format}
+                />
+              ))}
+              {nonLiquidAssets.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                    No non-liquid assets yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Liquidity chart */}
+      <LiquidityChart liquid={liquidTotal} nonLiquid={nonLiquidTotal} format={format} />
 
       {showForm && (
         <Modal title={editing ? "Edit asset" : "Add asset"} onClose={closeModal}>
