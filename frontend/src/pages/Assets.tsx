@@ -127,21 +127,10 @@ function AssetRow({
             <div className="ml-6 rounded-lg border border-slate-800 bg-slate-900/40 p-4">
               {isCash ? (
                 <>
-                  <div className="grid grid-cols-3 gap-4 text-sm mb-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                     <div>
                       <p className="text-slate-500 mb-1">Balance</p>
                       <p className="text-white font-medium text-lg">{format(asset.currentValue, asset.currency)}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500 mb-1">Total change</p>
-                      {totalChange != null ? (
-                        <p className={`font-medium ${totalChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {totalChange >= 0 ? "+" : ""}{format(totalChange, asset.currency)}
-                          {totalChangePct != null && <span className="text-xs ml-1">({totalChangePct >= 0 ? "+" : ""}{totalChangePct.toFixed(1)}%)</span>}
-                        </p>
-                      ) : (
-                        <p className="text-slate-500">—</p>
-                      )}
                     </div>
                     <div>
                       <p className="text-slate-500 mb-1">Linked transactions</p>
@@ -157,7 +146,7 @@ function AssetRow({
                           <div key={i} className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-2">
                               <span className={`inline-block h-1.5 w-1.5 rounded-full ${tx.type === "income" ? "bg-emerald-400" : "bg-rose-400"}`} />
-                              <span className="text-slate-400">{tx.date}</span>
+                              <span className="text-slate-400">{tx.date.slice(0, 10)}</span>
                               <span className="text-slate-300">{tx.type === "income" ? incomeLabel(tx.category) : expenseLabel(tx.category)}</span>
                             </div>
                             <span className={tx.amount >= 0 ? "text-emerald-400" : "text-rose-400"}>
@@ -358,7 +347,7 @@ export function Assets() {
               name: editing.name,
               category: editing.category,
               bankName: editing.bankName,
-              purchaseValue: (editing.category === "cash" || editing.category === "bank") ? editing.currentValue : editing.purchaseValue,
+              purchaseValue: editing.purchaseValue,
               currentValue: editing.currentValue,
               currency: editing.currency,
               purchaseDate: editing.purchaseDate?.slice(0, 10),

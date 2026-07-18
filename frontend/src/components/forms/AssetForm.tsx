@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { assetSchema, type AssetFormValues, type AssetInput } from "../../lib/schemas";
@@ -28,6 +29,7 @@ export function AssetForm({
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<AssetFormValues, unknown, AssetInput>({
     resolver: zodResolver(assetSchema),
@@ -36,12 +38,21 @@ export function AssetForm({
 
   const category = watch("category");
   const isCashLike = category === "cash" || category === "bank";
+  const currentValue = watch("currentValue");
+
+  useEffect(() => {
+    if (isCashLike && currentValue != null) {
+      setValue("purchaseValue", currentValue);
+    }
+  }, [isCashLike, currentValue, setValue]);
 
   function handleValid(data: Record<string, unknown>) {
-    const d = data as { purchaseValue: number; currentValue?: number };
+    const d = data as { purchaseValue?: number; currentValue?: number };
+    const balance = isCashLike ? Number(d.currentValue ?? d.purchaseValue ?? 0) : Number(d.purchaseValue ?? 0);
     const payload: AssetInput = {
       ...(data as AssetInput),
-      currentValue: isCashLike ? d.purchaseValue : Number(d.currentValue ?? 0),
+      purchaseValue: balance,
+      currentValue: isCashLike ? balance : Number(d.currentValue ?? 0),
     };
     onSubmit(payload);
   }
@@ -92,11 +103,17 @@ export function AssetForm({
           <input
             type="number"
             step="any"
-            {...register("purchaseValue")}
+            {...register(isCashLike ? "currentValue" : "purchaseValue")}
             className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
           />
-          {errors.purchaseValue && (
-            <p className="mt-1 text-xs text-rose-400">{errors.purchaseValue.message}</p>
+          {isCashLike ? (
+            errors.currentValue && (
+              <p className="mt-1 text-xs text-rose-400">{errors.currentValue.message}</p>
+            )
+          ) : (
+            errors.purchaseValue && (
+              <p className="mt-1 text-xs text-rose-400">{errors.purchaseValue.message}</p>
+            )
           )}
         </div>
         {!isCashLike && (
