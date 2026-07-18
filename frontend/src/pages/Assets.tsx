@@ -19,12 +19,14 @@ interface AssetHistoryPoint {
 }
 
 interface LinkedTransaction {
-  type: "expense" | "income";
+  type: "expense" | "income" | "transfer";
   category: string;
   amount: number;
   currency: string;
   date: string;
   notes?: string;
+  transferDirection?: "in" | "out";
+  transferOtherAsset?: string;
 }
 
 function AssetRow({
@@ -63,6 +65,19 @@ function AssetRow({
     enabled: expanded && isCash,
   });
 
+  const { data: transfers } = useQuery<{
+    id: string;
+    date: string;
+    direction: "in" | "out";
+    amount: number;
+    currency: string;
+    otherAssetName: string;
+  }[]>({
+    queryKey: ["assets", asset.id, "transfers"],
+    queryFn: async () => (await api.get("/assets/transfer", { params: { assetId: asset.id } })).data,
+    enabled: expanded && isCash,
+  });
+
   const now = new Date();
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -96,6 +111,19 @@ function AssetRow({
       if ((i as any).assetId === asset.id || (i as any).asset_id === asset.id) {
         linkedTxns.push({ type: "income", category: i.category, amount: i.amount, currency: i.currency, date: i.date, notes: i.notes });
       }
+    }
+  }
+  if (isCash && transfers) {
+    for (const t of transfers) {
+      linkedTxns.push({
+        type: "transfer",
+        category: "transfer",
+        amount: t.direction === "out" ? -t.amount : t.amount,
+        currency: t.currency,
+        date: t.date,
+        transferDirection: t.direction,
+        transferOtherAsset: t.otherAssetName,
+      });
     }
   }
   linkedTxns.sort((a, b) => b.date.localeCompare(a.date));
@@ -170,9 +198,17 @@ function AssetRow({
                         {recentTxns.map((tx, i) => (
                           <div key={i} className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-2">
-                              <span className={`inline-block h-1.5 w-1.5 rounded-full ${tx.type === "income" ? "bg-emerald-400" : "bg-rose-400"}`} />
+                              <span className={`inline-block h-1.5 w-1.5 rounded-full ${
+                                tx.type === "income" ? "bg-emerald-400" :
+                                tx.type === "transfer" ? "bg-blue-400" :
+                                "bg-rose-400"
+                              }`} />
                               <span className="text-slate-400">{tx.date.slice(0, 10)}</span>
-                              <span className="text-slate-300">{tx.type === "income" ? incomeLabel(tx.category) : expenseLabel(tx.category)}</span>
+                              <span className="text-slate-300">
+                                {tx.type === "income" && incomeLabel(tx.category)}
+                                {tx.type === "expense" && expenseLabel(tx.category)}
+                                {tx.type === "transfer" && `Transfer ${tx.transferDirection === "out" ? "to" : "from"} ${tx.transferOtherAsset}`}
+                              </span>
                             </div>
                             <span className={tx.amount >= 0 ? "text-emerald-400" : "text-rose-400"}>
                               {tx.amount >= 0 ? "+" : ""}{format(Math.abs(tx.amount), tx.currency)}

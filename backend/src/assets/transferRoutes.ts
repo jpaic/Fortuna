@@ -66,10 +66,69 @@ transferRouter.post(
     await upsertAssetHistory(userId, { id: toAssetId, current_value: newToValue });
     await upsertDailySnapshot(userId);
 
+    await query(
+      `INSERT INTO asset_transfers (user_id, from_asset_id, to_asset_id, amount, from_currency, to_currency, converted_amount)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [userId, fromAssetId, toAssetId, amount, fromCurrency, toCurrency, converted]
+    );
+
     res.json({
       from: { id: fromAssetId, newValue: newFromValue },
       to: { id: toAssetId, newValue: newToValue },
       converted,
     });
+  })
+);
+
+transferRouter.get(
+  "/",
+  asyncHandler(async (req, res) => {
+    const userId = req.userId!;
+    const assetId = String(req.query.assetId ?? "");
+    if (!assetId) {
+      res.status(400).json({ error: "assetId is required" });
+      return;
+    }
+
+    const rows = await query<{
+      id: string;
+      from_asset_id: string;
+      to_asset_id: string;
+      amount: string;
+      from_currency: string;
+      to_currency: string;
+      converted_amount: string;
+      created_at: string;
+      from_name: string;
+      from_bank_name: string | null;
+      from_category: string;
+      to_name: string;
+      to_bank_name: string | null;
+      to_category: string;
+    }>(
+      `SELECT t.*,
+              a1.name AS from_name, a1.bank_name AS from_bank_name, a1.category AS from_category,
+              a2.name AS to_name, a2.bank_name AS to_bank_name, a2.category AS to_category
+       FROM asset_transfers t
+       JOIN assets a1 ON a1.id = t.from_asset_id
+       JOIN assets a2 ON a2.id = t.to_asset_id
+       WHERE t.user_id = $1 AND (t.from_asset_id = $2 OR t.to_asset_id = $2)
+       ORDER BY t.created_at DESC`,
+      [userId, assetId]
+    );
+
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        date: new Date(r.created_at).toISOString().slice(0, 10),
+        direction: r.from_asset_id === assetId ? "out" : "in",
+        amount: r.from_asset_id === assetId ? Number(r.amount) : Number(r.converted_amount),
+        currency: r.from_asset_id === assetId ? r.from_currency : r.to_currency,
+        otherAssetName:
+          r.from_asset_id === assetId
+            ? (r.to_category === "bank" && r.to_bank_name ? `${r.to_bank_name} – ${r.to_name}` : r.to_name)
+            : (r.from_category === "bank" && r.from_bank_name ? `${r.from_bank_name} – ${r.from_name}` : r.from_name),
+      }))
+    );
   })
 );
