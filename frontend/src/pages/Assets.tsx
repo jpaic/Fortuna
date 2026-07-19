@@ -55,7 +55,7 @@ function AssetRow({
   const isCloseAccount = asset.category === "bank" && asset.subCategory === "savings";
   const isNearLiquid = asset.liquidity === "near_liquid";
   const isInvestment = asset.category === "investment";
-  const isSellable = asset.category === "real_estate" || asset.category === "vehicle" || asset.category === "other" || isInvestment;
+  const isSellable = !isInvestment && (asset.category === "real_estate" || asset.category === "vehicle" || asset.category === "other");
 
   const { data: history } = useQuery<AssetHistoryPoint[]>({
     queryKey: ["asset-history", asset.id],

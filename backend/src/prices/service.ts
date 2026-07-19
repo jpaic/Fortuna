@@ -57,10 +57,26 @@ const CRYPTO_MAP: Record<string, string> = {
 };
 
 // ── Yahoo Finance: fetch stock/ETF price ─────────────────────
+const EUROPEAN_SUFFIXES = ["", ".L", ".AS", ".MI", ".PA", ".DE", ".SW", ".VI"];
+
 async function fetchYahooPrice(
   ticker: string,
   currency: string
 ): Promise<number | null> {
+  // If ticker already has an exchange suffix, try it directly
+  if (/\.[A-Z]{1,4}$/.test(ticker)) {
+    return fetchYahooQuote(ticker);
+  }
+
+  // Try the raw ticker first, then common European exchange suffixes
+  for (const suffix of EUROPEAN_SUFFIXES) {
+    const price = await fetchYahooQuote(ticker + suffix);
+    if (price !== null && price > 0) return price;
+  }
+  return null;
+}
+
+async function fetchYahooQuote(ticker: string): Promise<number | null> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
     const resp = await fetch(url, {
