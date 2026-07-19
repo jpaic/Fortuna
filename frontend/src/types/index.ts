@@ -60,7 +60,7 @@ export interface Income {
   category: IncomeCategory;
   amount: number;
   currency: string;
-  frequency: "one_time" | "weekly" | "monthly" | "yearly";
+  frequency: "one_time" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semi_annual" | "yearly";
   date: string;
   notes?: string;
   assetId?: string;
@@ -80,7 +80,7 @@ export interface Expense {
   merchant?: string;
   amount: number;
   currency: string;
-  frequency: "one_time" | "weekly" | "monthly" | "yearly";
+  frequency: "one_time" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semi_annual" | "yearly";
   date: string;
   notes?: string;
   assetId?: string;

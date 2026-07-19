@@ -9,6 +9,7 @@ import { ExpenseForm } from "../components/forms/ExpenseForm";
 import type { ExpenseInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 import { expenseLabel } from "../lib/expenseLabels";
+import { frequencyLabel } from "../lib/frequencyLabels";
 import { assetDisplayName } from "../lib/assetDisplayName";
 
 export function Expenses() {
@@ -77,7 +78,7 @@ export function Expenses() {
                 <td className="px-4 py-3">{expenseLabel(entry.category)}</td>
                 <td className="px-4 py-3 text-slate-400">{entry.merchant || "—"}</td>
                 <td className="px-4 py-3 capitalize text-slate-400">
-                  {entry.frequency?.replace("_", " ") ?? "One-time"}
+                  {frequencyLabel(entry.frequency ?? "one_time")}
                 </td>
                 <td className="px-4 py-3 text-rose-400">
                   -{format(entry.amount, entry.currency)}

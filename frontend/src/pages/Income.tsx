@@ -9,6 +9,7 @@ import { IncomeForm } from "../components/forms/IncomeForm";
 import type { IncomeInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 import { incomeLabel } from "../lib/incomeLabels";
+import { frequencyLabel } from "../lib/frequencyLabels";
 import { assetDisplayName } from "../lib/assetDisplayName";
 
 export function Income() {
@@ -77,7 +78,7 @@ export function Income() {
                 <td className="px-4 py-3">{entry.source}</td>
                 <td className="px-4 py-3 text-slate-400">{incomeLabel(entry.category)}</td>
                 <td className="px-4 py-3 capitalize text-slate-400">
-                  {entry.frequency.replace("_", " ")}
+                  {frequencyLabel(entry.frequency)}
                 </td>
                 <td className="px-4 py-3 text-emerald-400">
                   +{format(entry.amount, entry.currency)}

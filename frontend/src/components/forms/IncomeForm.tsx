@@ -52,7 +52,15 @@ const CATEGORY_GROUPS: { label: string; options: { value: string; label: string 
   },
 ];
 
-const FREQUENCIES = ["one_time", "weekly", "monthly", "yearly"] as const;
+const FREQUENCIES = [
+  { value: "one_time", label: "One-time" },
+  { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Bi-weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "semi_annual", label: "Semi-annual" },
+  { value: "yearly", label: "Yearly" },
+] as const;
 
 const inputClass =
   "w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none";
@@ -114,8 +122,8 @@ export function IncomeForm({
           <label className={labelClass}>Frequency</label>
           <select {...register("frequency")} className={inputClass}>
             {FREQUENCIES.map((f) => (
-              <option key={f} value={f}>
-                {f.replace("_", " ")}
+              <option key={f.value} value={f.value}>
+                {f.label}
               </option>
             ))}
           </select>

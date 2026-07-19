@@ -9,12 +9,24 @@ import { upsertAssetHistory } from "../assets/helpers.js";
  * - yearly:  first of year,            e.g. "2026"
  */
 function periodKey(date: Date, freq: string): string {
-  if (freq === "weekly") {
+  if (freq === "weekly" || freq === "biweekly") {
     const d = new Date(date);
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     d.setDate(diff);
-    return `${d.getFullYear()}-W${String(Math.ceil(((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000 + new Date(d.getFullYear(), 0, 1).getDay() + 1) / 7)).padStart(2, "0")}`;
+    const weekNum = Math.ceil(((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000 + new Date(d.getFullYear(), 0, 1).getDay() + 1) / 7);
+    if (freq === "biweekly") {
+      return `${d.getFullYear()}-BW${String(Math.ceil(weekNum / 2)).padStart(2, "0")}`;
+    }
+    return `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  }
+  if (freq === "quarterly") {
+    const q = Math.floor(date.getMonth() / 3) + 1;
+    return `${date.getFullYear()}-Q${q}`;
+  }
+  if (freq === "semi_annual") {
+    const half = date.getMonth() < 6 ? 1 : 2;
+    return `${date.getFullYear()}-H${half}`;
   }
   if (freq === "yearly") return `${date.getFullYear()}`;
   // monthly (default)
@@ -28,12 +40,20 @@ function isPeriodStart(date: Date, freq: string): boolean {
   if (freq === "monthly") return date.getDate() === 1;
   if (freq === "yearly") return date.getMonth() === 0 && date.getDate() === 1;
   if (freq === "weekly") return date.getDay() === 1; // Monday
+  if (freq === "biweekly") {
+    if (date.getDay() !== 1) return false;
+    const startOfYear = new Date(date.getFullYear(), 0, 1);
+    const dayOfYear = Math.ceil((date.getTime() - startOfYear.getTime()) / 86400000);
+    return Math.floor(dayOfYear / 14) % 2 === 0;
+  }
+  if (freq === "quarterly") return date.getDate() === 1 && date.getMonth() % 3 === 0;
+  if (freq === "semi_annual") return date.getDate() === 1 && (date.getMonth() === 0 || date.getMonth() === 6);
   return false;
 }
 
 async function processTable(tableName: "expenses" | "income") {
   const today = new Date();
-  if (!isPeriodStart(today, "monthly") && !isPeriodStart(today, "yearly") && !isPeriodStart(today, "weekly")) {
+  if (!isPeriodStart(today, "monthly") && !isPeriodStart(today, "yearly") && !isPeriodStart(today, "weekly") && !isPeriodStart(today, "biweekly") && !isPeriodStart(today, "quarterly") && !isPeriodStart(today, "semi_annual")) {
     return { processed: 0 };
   }
 

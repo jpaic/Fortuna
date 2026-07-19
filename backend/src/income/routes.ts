@@ -12,7 +12,7 @@ const category = z.enum([
   "royalties", "affiliate",
   "gifts_received", "refund", "tax_refund", "other",
 ]);
-const frequency = z.enum(["one_time", "weekly", "monthly", "yearly"]);
+const frequency = z.enum(["one_time", "weekly", "biweekly", "monthly", "quarterly", "semi_annual", "yearly"]);
 
 const createSchema = z.object({
   source: z.string().min(1),

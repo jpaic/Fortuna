@@ -28,7 +28,7 @@ const createSchema = z.object({
   amount: z.number().positive(),
   currency: z.string().length(3).default("EUR"),
   date: z.string(),
-  frequency: z.enum(["one_time", "weekly", "monthly", "yearly"]).default("one_time"),
+  frequency: z.enum(["one_time", "weekly", "biweekly", "monthly", "quarterly", "semi_annual", "yearly"]).default("one_time"),
   notes: z.string().optional(),
   assetId: z.string().uuid().optional(),
 });

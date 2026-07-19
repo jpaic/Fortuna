@@ -91,10 +91,13 @@ analyticsRouter.get(
     // ── Monthly recurring totals (normalized) ─────────────────
     const normalize = (amt: number, freq: string) => {
       switch (freq) {
-        case "weekly":  return amt * 4.33;
-        case "monthly": return amt;
-        case "yearly":  return amt / 12;
-        default:        return 0; // one_time
+        case "weekly":      return amt * 4.33;
+        case "biweekly":    return amt * 2.167;
+        case "monthly":     return amt;
+        case "quarterly":   return amt / 3;
+        case "semi_annual": return amt / 6;
+        case "yearly":      return amt / 12;
+        default:            return 0; // one_time
       }
     };
 
