@@ -26,7 +26,7 @@ export function NearLiquidModal({
   const targets = (assets ?? []).filter(
     (a) =>
       a.id !== asset.id &&
-      a.liquidity === "liquid"
+      ((a.category === "cash") || (a.category === "bank" && a.subCategory === "checking"))
   );
 
   const convert = useMutation({
