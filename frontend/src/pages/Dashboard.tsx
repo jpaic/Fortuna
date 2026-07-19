@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import type { DashboardSummary } from "../types";
@@ -12,9 +13,28 @@ import { useCurrency } from "../context/CurrencyContext";
 import { useDashboardFilters, FilterProvider } from "../context/FilterContext";
 import { DashboardFilters } from "../components/DashboardFilters";
 
+const yearSelectClass =
+  "rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-sm text-white focus:border-emerald-500 focus:outline-none";
+
+function YearSelect({ value, onChange, years }: { value: number; onChange: (y: number) => void; years: number[] }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className={yearSelectClass}
+    >
+      {years.map((y) => (
+        <option key={y} value={y}>{y}</option>
+      ))}
+    </select>
+  );
+}
+
 function DashboardContent() {
   const { displayCurrency } = useCurrency();
   const filters = useDashboardFilters();
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
 
   const excludeAssets = filters.excludeAssets.length > 0 ? filters.excludeAssets.join(",") : undefined;
   const excludeInvTypes = filters.excludeInvTypes.length > 0 ? filters.excludeInvTypes.join(",") : undefined;
@@ -23,13 +43,14 @@ function DashboardContent() {
 
   const { data, isPending } = useQuery({
     queryKey: [
-      "dashboard-summary", displayCurrency,
+      "dashboard-summary", displayCurrency, selectedYear,
       excludeAssets, excludeInvTypes, excludeIncomeCats, excludeExpenseCats,
     ],
     queryFn: async () =>
       (await api.get<DashboardSummary>("/dashboard", {
         params: {
           currency: displayCurrency,
+          year: selectedYear,
           ...(excludeAssets && { excludeAssets }),
           ...(excludeInvTypes && { excludeInvTypes }),
           ...(excludeIncomeCats && { excludeIncomeCats }),
@@ -89,7 +110,12 @@ function DashboardContent() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-          <p className="mb-4 text-sm font-medium text-slate-300">Income vs expenses</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-medium text-slate-300">Income vs expenses</p>
+            {data.availableYears.length > 1 && (
+              <YearSelect value={selectedYear} onChange={setSelectedYear} years={data.availableYears} />
+            )}
+          </div>
           {data.monthlyIncomeVsExpenses.length > 0 ? (
             <IncomeVsExpenses data={data.monthlyIncomeVsExpenses} currency={displayCurrency} />
           ) : (
@@ -108,7 +134,12 @@ function DashboardContent() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-          <p className="mb-4 text-sm font-medium text-slate-300">Savings over time</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-medium text-slate-300">Savings over time</p>
+            {data.availableYears.length > 1 && (
+              <YearSelect value={selectedYear} onChange={setSelectedYear} years={data.availableYears} />
+            )}
+          </div>
           {data.monthlyIncomeVsExpenses.length > 0 ? (
             <SavingsOverTime data={data.monthlyIncomeVsExpenses} currency={displayCurrency} />
           ) : (

@@ -37,6 +37,7 @@ export function IncomeVsExpenses({ data, currency }: Props) {
           fontSize={12}
           tickLine={false}
           axisLine={false}
+          tickCount={10}
           tickFormatter={(v) => tickFmt(v, currency)}
         />
         <Tooltip

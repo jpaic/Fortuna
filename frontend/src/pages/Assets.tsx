@@ -13,6 +13,7 @@ import { useCurrency } from "../context/CurrencyContext";
 import { expenseLabel } from "../lib/expenseLabels";
 import { incomeLabel } from "../lib/incomeLabels";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+import { AssetTransactionsChart } from "../components/charts/AssetTransactionsChart";
 
 interface AssetHistoryPoint {
   date: string;
@@ -505,8 +506,11 @@ export function Assets() {
         </div>
       </div>
 
-      {/* Liquidity chart */}
-      <LiquidityChart liquid={liquidTotal} semiLiquid={semiLiquidTotal} nonLiquid={nonLiquidTotal} format={format} />
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <LiquidityChart liquid={liquidTotal} semiLiquid={semiLiquidTotal} nonLiquid={nonLiquidTotal} format={format} />
+        <AssetTransactionsChart assets={liquidAssets} format={format} />
+      </div>
 
       {showForm && (
         <Modal title={editing ? "Edit asset" : "Add asset"} onClose={closeModal}>

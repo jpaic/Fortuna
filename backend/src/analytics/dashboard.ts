@@ -24,6 +24,10 @@ analyticsRouter.get(
     const userId = req.userId;
     const targetCurrency = String(req.query.currency ?? "EUR");
 
+    // Year filter for bar charts (default: current year)
+    const currentYear = new Date().getFullYear();
+    const selectedYear = Number(req.query.year) || currentYear;
+
     // Parse exclude filters
     const excludeAssets = parseList(req.query.excludeAssets);
     const excludeInvTypes = parseList(req.query.excludeInvTypes);
@@ -88,19 +92,6 @@ analyticsRouter.get(
       }))
       .sort((a, b) => b.value - a.value);
 
-    // ── Monthly recurring totals (normalized) ─────────────────
-    const normalize = (amt: number, freq: string) => {
-      switch (freq) {
-        case "weekly":      return amt * 4.33;
-        case "biweekly":    return amt * 2.167;
-        case "monthly":     return amt;
-        case "quarterly":   return amt / 3;
-        case "semi_annual": return amt / 6;
-        case "yearly":      return amt / 12;
-        default:            return 0; // one_time
-      }
-    };
-
     // ── Net worth history ─────────────────────────────────────
     const netWorthHistory = history.map((h) => ({
       date: new Date(h.snapshot_date).toISOString().slice(0, 10),
@@ -142,17 +133,31 @@ analyticsRouter.get(
         ? ((netWorth - lastMonthNetWorth) / Math.abs(lastMonthNetWorth)) * 100
         : 0;
 
-    // ── Monthly income vs expenses (last 12 months) ───────────
+    // ── Available years from cashflow_history ─────────────────
+    const yearRows = await query<{ year: string }>(
+      `SELECT DISTINCT LEFT(month_key, 4) AS year FROM cashflow_history WHERE user_id = $1 ORDER BY year`,
+      [userId]
+    );
+    const availableYears = yearRows.map((r) => Number(r.year));
+    if (!availableYears.includes(currentYear)) availableYears.push(currentYear);
+    availableYears.sort((a, b) => a - b);
+
+    // ── Monthly income vs expenses (from cashflow_history) ────
     const months: { label: string; key: string }[] = [];
-    const now = new Date();
     const monthKeys: string[] = [];
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+    for (let m = 0; m < 12; m++) {
+      const key = `${selectedYear}-${String(m + 1).padStart(2, "0")}`;
+      const d = new Date(selectedYear, m, 1);
+      const label = d.toLocaleDateString(undefined, { month: "short" });
       months.push({ label, key });
       monthKeys.push(key);
     }
+
+    const cashflowRows = await query<{ month_key: string; type: string; amount: string; currency: string }>(
+      `SELECT month_key, type, amount, currency FROM cashflow_history
+       WHERE user_id = $1 AND month_key LIKE $2`,
+      [userId, `${selectedYear}-%`]
+    );
 
     const monthIncomeMap = new Map<string, number>();
     const monthExpenseMap = new Map<string, number>();
@@ -161,30 +166,14 @@ analyticsRouter.get(
       monthExpenseMap.set(m.key, 0);
     }
 
-    for (const i of fIncome) {
-      const converted = c(Number(i.amount), i.currency);
-      if (i.frequency === "one_time") {
-        const key = new Date(i.date).toISOString().slice(0, 7);
-        if (monthIncomeMap.has(key)) monthIncomeMap.set(key, monthIncomeMap.get(key)! + converted);
+    for (const row of cashflowRows) {
+      const key = row.month_key;
+      const converted = c(Number(row.amount), row.currency);
+      if (!monthIncomeMap.has(key) && !monthExpenseMap.has(key)) continue;
+      if (row.type === "income") {
+        monthIncomeMap.set(key, (monthIncomeMap.get(key) ?? 0) + converted);
       } else {
-        const monthly = normalize(converted, i.frequency);
-        const startKey = new Date(i.date).toISOString().slice(0, 7);
-        for (const key of monthKeys) {
-          if (key >= startKey) monthIncomeMap.set(key, monthIncomeMap.get(key)! + monthly);
-        }
-      }
-    }
-    for (const e of fExpenses) {
-      const converted = c(Number(e.amount), e.currency);
-      if (e.frequency === "one_time") {
-        const key = new Date(e.date).toISOString().slice(0, 7);
-        if (monthExpenseMap.has(key)) monthExpenseMap.set(key, monthExpenseMap.get(key)! + converted);
-      } else {
-        const monthly = normalize(converted, e.frequency);
-        const startKey = new Date(e.date).toISOString().slice(0, 7);
-        for (const key of monthKeys) {
-          if (key >= startKey) monthExpenseMap.set(key, monthExpenseMap.get(key)! + monthly);
-        }
+        monthExpenseMap.set(key, (monthExpenseMap.get(key) ?? 0) + converted);
       }
     }
 
@@ -194,18 +183,39 @@ analyticsRouter.get(
       expenses: round2(monthExpenseMap.get(m.key) ?? 0),
     }));
 
-    // KPIs: current month totals (includes one-time items in that month)
-    const currentMonthKey = monthKeys[monthKeys.length - 1];
+    // KPIs: current month totals from cashflow_history
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const monthlyIncome = monthIncomeMap.get(currentMonthKey) ?? 0;
     const monthlyExpenses = monthExpenseMap.get(currentMonthKey) ?? 0;
     const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
 
-    // ── Expense breakdown by category (normalized to monthly) ─
+    // ── Expense breakdown by category ─────────────────────────
+    // Recurring: normalized to monthly (ongoing cost estimate)
+    // One-time: only include current month's entries
+    const normalize = (amt: number, freq: string) => {
+      switch (freq) {
+        case "weekly":      return amt * 4.33;
+        case "biweekly":    return amt * 2.167;
+        case "monthly":     return amt;
+        case "quarterly":   return amt / 3;
+        case "semi_annual": return amt / 6;
+        case "yearly":      return amt / 12;
+        default:            return 0; // one_time — handled separately
+      }
+    };
+
     const expenseCatMap = new Map<string, number>();
     for (const e of fExpenses) {
       const converted = c(Number(e.amount), e.currency);
-      const monthly = normalize(converted, e.frequency);
-      expenseCatMap.set(e.category, (expenseCatMap.get(e.category) ?? 0) + monthly);
+      if (e.frequency === "one_time") {
+        const key = e.date.slice(0, 7);
+        if (key !== currentMonthKey) continue;
+        expenseCatMap.set(e.category, (expenseCatMap.get(e.category) ?? 0) + converted);
+      } else {
+        const monthly = normalize(converted, e.frequency);
+        expenseCatMap.set(e.category, (expenseCatMap.get(e.category) ?? 0) + monthly);
+      }
     }
     const totalExpenses = [...expenseCatMap.values()].reduce((a, b) => a + b, 0);
     const expenseBreakdown = [...expenseCatMap.entries()]
@@ -252,6 +262,7 @@ analyticsRouter.get(
       expenseBreakdown,
       investmentBreakdown,
       netWorthComposition,
+      availableYears,
     });
   })
 );

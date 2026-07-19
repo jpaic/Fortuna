@@ -1,6 +1,7 @@
 import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "../assets/helpers.js";
+import { recordRecurringCashflow } from "../analytics/cashflowSync.js";
 
 /**
  * Calculate the period key for a given date and frequency.
@@ -122,6 +123,16 @@ async function processTable(tableName: "expenses" | "income") {
     );
 
     await upsertDailySnapshot(row.user_id);
+
+    // Record this period's cashflow in the history table
+    await recordRecurringCashflow(row.user_id, tableName, {
+      id: row.id,
+      amount: row.amount,
+      currency: row.currency,
+      category: row.category,
+      date: row.date,
+    }, today);
+
     processed++;
   }
 

@@ -118,7 +118,10 @@ const CATEGORY_GROUPS: { label: string; options: { value: string; label: string 
 const FREQUENCIES = [
   { value: "one_time", label: "One-time" },
   { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Bi-weekly" },
   { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "semi_annual", label: "Semi-annual" },
   { value: "yearly", label: "Yearly" },
 ] as const;
 
@@ -157,6 +160,11 @@ export function ExpenseForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <label className={labelClass}>Merchant</label>
+        <input {...register("merchant")} className={inputClass} placeholder="Optional" />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelClass}>Category</label>
@@ -173,12 +181,18 @@ export function ExpenseForm({
           </select>
         </div>
         <div>
-          <label className={labelClass}>Merchant</label>
-          <input {...register("merchant")} className={inputClass} placeholder="Optional" />
+          <label className={labelClass}>Frequency</label>
+          <select {...register("frequency")} className={inputClass}>
+            {FREQUENCIES.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      <div className={`grid gap-4 ${isRecurring ? "grid-cols-3" : "grid-cols-4"}`}>
+      <div className={`grid gap-4 ${isRecurring ? "grid-cols-2" : "grid-cols-3"}`}>
         <div>
           <label className={labelClass}>Amount</label>
           <input type="number" step="any" {...register("amount")} className={inputClass} />
@@ -189,16 +203,6 @@ export function ExpenseForm({
           <select {...register("currency")} className={`${inputClass} uppercase`}>
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={labelClass}>Frequency</label>
-          <select {...register("frequency")} className={inputClass}>
-            {FREQUENCIES.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
             ))}
           </select>
         </div>

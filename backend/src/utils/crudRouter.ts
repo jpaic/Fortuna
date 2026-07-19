@@ -127,11 +127,11 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
     "/:id",
     asyncHandler(async (req, res) => {
       const row = await queryOne(
-        `DELETE FROM ${config.table} WHERE id = $1 AND user_id = $2 RETURNING id`,
+        `DELETE FROM ${config.table} WHERE id = $1 AND user_id = $2 RETURNING *`,
         [req.params.id, req.userId]
       );
       if (!row) throw new ApiError(404, "Not found");
-      if (config.postMutation) await config.postMutation(req.userId!);
+      if (config.postMutation) await config.postMutation(req.userId!, row as Record<string, unknown>);
       res.status(204).send();
     })
   );

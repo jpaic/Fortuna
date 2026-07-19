@@ -4,6 +4,7 @@ import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "../assets/helpers.js";
 import { getRates, convert } from "../utils/currency.js";
+import { syncCashflowForEntry } from "../analytics/cashflowSync.js";
 
 const category = z.enum([
   "rent", "mortgage", "utilities", "home_reno", "home_ins", "hoa",
@@ -80,7 +81,8 @@ export const expensesRouter = createCrudRouter({
   columns,
   createSchema,
   updateSchema,
-  postMutation: async (userId, _row, input) => {
+  postMutation: async (userId, row, input) => {
     await handleAssetDeduction(userId, input ?? {});
+    await syncCashflowForEntry(userId, "expenses", row);
   },
 });

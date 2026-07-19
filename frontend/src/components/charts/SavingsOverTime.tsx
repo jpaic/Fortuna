@@ -33,6 +33,7 @@ export function SavingsOverTime({ data, currency }: Props) {
           tick={{ fill: "#94a3b8", fontSize: 12 }}
           tickLine={false}
           axisLine={false}
+          tickCount={10}
           tickFormatter={(v) => {
             if (Math.abs(v) >= 1000) return `${s}${(v / 1000).toFixed(0)}k`;
             return `${s}${v.toFixed(0)}`;

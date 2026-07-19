@@ -133,6 +133,7 @@ export interface DashboardSummary {
   expenseBreakdown: { category: string; value: number; percent: number }[];
   investmentBreakdown: { category: string; value: number; percent: number }[];
   netWorthComposition: { date: string; assets: number; investments: number }[];
+  availableYears: number[];
 }
 
 export interface AuthResponse {
