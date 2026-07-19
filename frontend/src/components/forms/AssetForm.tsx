@@ -68,7 +68,7 @@ export function AssetForm({
     enabled: !isCashLike,
   });
 
-  const liquidAssets = (allAssets ?? []).filter((a) => a.liquidity === "liquid");
+  const liquidAssets = (allAssets ?? []).filter((a) => (a.category === "cash") || (a.category === "bank" && a.subCategory === "checking"));
 
   useEffect(() => {
     if (isCashLike && currentValue != null) {

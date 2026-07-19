@@ -30,7 +30,7 @@ export function BuyMoreModal({
     queryFn: async () => (await api.get("/assets")).data,
   });
 
-  const payAssets = cashAssets?.filter((a) => a.liquidity === "liquid") ?? [];
+  const payAssets = cashAssets?.filter((a) => (a.category === "cash") || (a.category === "bank" && a.subCategory === "checking")) ?? [];
 
   const qty = Number(quantity) || 0;
   const priceNum = Number(price) || 0;
