@@ -16,7 +16,7 @@ export interface Asset {
   category: AssetCategory;
   bankName?: string;
   subCategory?: string;
-  liquidity: "liquid" | "semi_liquid" | "illiquid";
+  liquidity: "liquid" | "near_liquid" | "illiquid";
   purchaseValue: number;
   currentValue: number;
   currency: string;
@@ -28,6 +28,7 @@ export interface Asset {
 export type AssetCategory =
   | "cash"
   | "bank"
+  | "investment"
   | "real_estate"
   | "vehicle"
   | "other";

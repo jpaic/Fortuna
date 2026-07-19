@@ -13,20 +13,23 @@ import { useCurrency } from "../context/CurrencyContext";
 import { useDashboardFilters, FilterProvider } from "../context/FilterContext";
 import { DashboardFilters } from "../components/DashboardFilters";
 
-const yearSelectClass =
-  "rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-sm text-white focus:border-emerald-500 focus:outline-none";
-
 function YearSelect({ value, onChange, years }: { value: number; onChange: (y: number) => void; years: number[] }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className={yearSelectClass}
-    >
+    <div className="flex items-center gap-1 rounded-lg bg-slate-800/50 p-0.5">
       {years.map((y) => (
-        <option key={y} value={y}>{y}</option>
+        <button
+          key={y}
+          onClick={() => onChange(y)}
+          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+            y === value
+              ? "bg-emerald-500/20 text-emerald-400"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          {y}
+        </button>
       ))}
-    </select>
+    </div>
   );
 }
 
@@ -112,9 +115,7 @@ function DashboardContent() {
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-medium text-slate-300">Income vs expenses</p>
-            {data.availableYears.length > 1 && (
               <YearSelect value={selectedYear} onChange={setSelectedYear} years={data.availableYears} />
-            )}
           </div>
           {data.monthlyIncomeVsExpenses.length > 0 ? (
             <IncomeVsExpenses data={data.monthlyIncomeVsExpenses} currency={displayCurrency} />
@@ -136,9 +137,7 @@ function DashboardContent() {
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-medium text-slate-300">Savings over time</p>
-            {data.availableYears.length > 1 && (
               <YearSelect value={selectedYear} onChange={setSelectedYear} years={data.availableYears} />
-            )}
           </div>
           {data.monthlyIncomeVsExpenses.length > 0 ? (
             <SavingsOverTime data={data.monthlyIncomeVsExpenses} currency={displayCurrency} />

@@ -4,7 +4,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { asyncHandler, ApiError } from "../middleware/error.js";
 import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
-import { upsertAssetHistory } from "../assets/helpers.js";
+import { upsertAssetHistory, syncInvestmentAsset } from "../assets/helpers.js";
 import { upsertInvestmentHistory } from "./helpers.js";
 
 const buySchema = z.object({
@@ -67,6 +67,18 @@ investmentBuyRouter.post(
       id: inv.id,
       current_value: newTotalQty * Number(inv.current_price),
       quantity: newTotalQty,
+    });
+
+    // Sync the linked investment asset
+    await syncInvestmentAsset(userId, {
+      id: inv.id,
+      asset_name: inv.asset_name,
+      type: inv.type,
+      quantity: newTotalQty,
+      average_buy_price: newAvgPrice,
+      current_price: Number(inv.current_price),
+      currency: inv.currency,
+      purchase_date: inv.purchase_date,
     });
 
     // Optionally deduct from asset and create expense

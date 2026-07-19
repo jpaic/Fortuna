@@ -28,7 +28,7 @@ const BANK_SUB_LABELS: Record<string, string> = {
   credit_card: "Credit card",
 };
 
-const LIQUIDITY_MAP: Record<string, "liquid" | "semi_liquid" | "illiquid"> = {
+const LIQUIDITY_MAP: Record<string, "liquid" | "near_liquid" | "illiquid"> = {
   cash: "liquid",
   bank: "liquid",
   real_estate: "illiquid",

@@ -25,8 +25,29 @@ const tickFmt = (v: number, c: string) => {
   return `${s}${v.toFixed(0)}`;
 };
 
+const NICE_STEPS = [5, 10, 15, 20, 25, 30, 40, 50];
+
+function niceStep(maxVal: number): number {
+  if (maxVal <= 0) return 5;
+  const raw = maxVal / 10;
+  for (const s of NICE_STEPS) {
+    if (raw <= s) return s;
+  }
+  return 50;
+}
+
+function buildTicks(max: number, step: number): number[] {
+  const ticks: number[] = [];
+  for (let v = 0; v <= max; v += step) ticks.push(v);
+  return ticks;
+}
+
 export function IncomeVsExpenses({ data, currency }: Props) {
   const s = sym(currency);
+  const maxVal = Math.max(...data.map((d) => Math.max(d.income, d.expenses)), 0);
+  const step = niceStep(maxVal);
+  const domainMax = Math.ceil(maxVal / step) * step || step;
+  const ticks = buildTicks(domainMax, step);
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -37,7 +58,8 @@ export function IncomeVsExpenses({ data, currency }: Props) {
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickCount={10}
+          domain={[0, domainMax]}
+          ticks={ticks}
           tickFormatter={(v) => tickFmt(v, currency)}
         />
         <Tooltip

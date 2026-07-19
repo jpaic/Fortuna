@@ -8,6 +8,7 @@ import type { Asset, Expense, Income } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { AssetForm } from "../components/forms/AssetForm";
 import { TransferModal } from "../components/TransferModal";
+import { NearLiquidModal } from "../components/NearLiquidModal";
 import type { AssetInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 import { expenseLabel } from "../lib/expenseLabels";
@@ -36,17 +37,21 @@ function AssetRow({
   onEdit,
   onRemove,
   onTransfer,
+  onNearLiquid,
   format,
 }: {
   asset: Asset;
   onEdit: (a: Asset) => void;
   onRemove: (id: string) => void;
   onTransfer: (a: Asset, closeAccount?: boolean) => void;
+  onNearLiquid: (a: Asset) => void;
   format: (value: number, currency: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const canExpand = asset.liquidity === "liquid";
-  const isCloseAccount = asset.liquidity === "semi_liquid";
+  const canExpand = asset.liquidity === "liquid" && !(asset.category === "bank" && asset.subCategory === "savings");
+  const isCloseAccount = asset.category === "bank" && asset.subCategory === "savings";
+  const isNearLiquid = asset.liquidity === "near_liquid";
+  const isInvestment = asset.category === "investment";
 
   const { data: history } = useQuery<AssetHistoryPoint[]>({
     queryKey: ["asset-history", asset.id],
@@ -150,6 +155,8 @@ function AssetRow({
         <td className="px-4 py-3 text-slate-400">
           {asset.category === "bank" && asset.subCategory
             ? asset.subCategory.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+            : asset.category === "investment" && asset.subCategory
+            ? asset.subCategory.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
             : asset.category === "cash" ? "Cash"
             : asset.category === "bank" ? "Bank"
             : asset.category === "real_estate" ? "Real Estate"
@@ -170,12 +177,21 @@ function AssetRow({
               <ArrowLeftRight size={16} />
             </button>
           )}
-          <button onClick={() => onEdit(asset)} className="text-slate-500 hover:text-emerald-400 mr-2">
-            <Pencil size={16} />
-          </button>
-          <button onClick={() => onRemove(asset.id)} className="text-slate-500 hover:text-rose-400">
-            <Trash2 size={16} />
-          </button>
+          {isNearLiquid && !isInvestment && (
+            <button onClick={() => onNearLiquid(asset)} className="text-slate-500 hover:text-yellow-400 mr-2" title="Near-liquid options">
+              <ArrowLeftRight size={16} />
+            </button>
+          )}
+          {!isInvestment && (
+            <>
+              <button onClick={() => onEdit(asset)} className="text-slate-500 hover:text-emerald-400 mr-2">
+                <Pencil size={16} />
+              </button>
+              <button onClick={() => onRemove(asset.id)} className="text-slate-500 hover:text-rose-400">
+                <Trash2 size={16} />
+              </button>
+            </>
+          )}
         </td>
       </tr>
       {expanded && canExpand && (
@@ -245,16 +261,16 @@ function AssetRow({
   );
 }
 
-function LiquidityChart({ liquid, semiLiquid, nonLiquid, format }: { liquid: number; semiLiquid: number; nonLiquid: number; format: (v: number, c: string) => string }) {
+function LiquidityChart({ liquid, nearLiquid, nonLiquid, displayCurrency, format }: { liquid: number; nearLiquid: number; nonLiquid: number; displayCurrency: string; format: (v: number, c: string) => string }) {
   const data = [
     { name: "Liquid", value: liquid },
-    { name: "Semi-liquid", value: semiLiquid },
+    { name: "Near-liquid", value: nearLiquid },
     { name: "Non-liquid", value: nonLiquid },
   ].filter((d) => d.value > 0);
 
-  const total = liquid + semiLiquid + nonLiquid;
+  const total = liquid + nearLiquid + nonLiquid;
   const liqPct = total > 0 ? ((liquid / total) * 100).toFixed(1) : "0";
-  const semiPct = total > 0 ? ((semiLiquid / total) * 100).toFixed(1) : "0";
+  const nearPct = total > 0 ? ((nearLiquid / total) * 100).toFixed(1) : "0";
   const nonLiqPct = total > 0 ? ((nonLiquid / total) * 100).toFixed(1) : "0";
 
   if (data.length === 0) return null;
@@ -279,7 +295,7 @@ function LiquidityChart({ liquid, semiLiquid, nonLiquid, format }: { liquid: num
               <Cell fill="#6366f1" />
             </Pie>
             <Tooltip
-              formatter={(value) => format(Number(value), "EUR")}
+              formatter={(value) => format(Number(value), displayCurrency)}
               contentStyle={{
                 backgroundColor: "#1e293b",
                 border: "1px solid #334155",
@@ -294,17 +310,17 @@ function LiquidityChart({ liquid, semiLiquid, nonLiquid, format }: { liquid: num
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full bg-emerald-500" />
             <span className="text-slate-400">Liquid</span>
-            <span className="text-white font-medium ml-auto">{format(liquid, "EUR")} ({liqPct}%)</span>
+            <span className="text-white font-medium ml-auto">{format(liquid, displayCurrency)} ({liqPct}%)</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full bg-yellow-500" />
-            <span className="text-slate-400">Semi-liquid</span>
-            <span className="text-white font-medium ml-auto">{format(semiLiquid, "EUR")} ({semiPct}%)</span>
+            <span className="text-slate-400">Near-liquid</span>
+            <span className="text-white font-medium ml-auto">{format(nearLiquid, displayCurrency)} ({nearPct}%)</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full bg-indigo-500" />
             <span className="text-slate-400">Non-liquid</span>
-            <span className="text-white font-medium ml-auto">{format(nonLiquid, "EUR")} ({nonLiqPct}%)</span>
+            <span className="text-white font-medium ml-auto">{format(nonLiquid, displayCurrency)} ({nonLiqPct}%)</span>
           </div>
         </div>
       </div>
@@ -318,19 +334,20 @@ export function Assets() {
   const [editing, setEditing] = useState<Asset | null>(null);
   const [transferring, setTransferring] = useState<Asset | null>(null);
   const [closeAccount, setCloseAccount] = useState(false);
+  const [nearLiquidAsset, setNearLiquidAsset] = useState<Asset | null>(null);
 
   function openTransfer(asset: Asset, isClose = false) {
     setTransferring(asset);
     setCloseAccount(isClose);
   }
-  const { format, displayCurrency } = useCurrency();
+  const { format, displayCurrency, convert } = useCurrency();
 
   const liquidAssets = useMemo(
     () => (list.data ?? []).filter((a) => a.liquidity === "liquid"),
     [list.data]
   );
-  const semiLiquidAssets = useMemo(
-    () => (list.data ?? []).filter((a) => a.liquidity === "semi_liquid"),
+  const nearLiquidAssets = useMemo(
+    () => (list.data ?? []).filter((a) => a.liquidity === "near_liquid"),
     [list.data]
   );
   const nonLiquidAssets = useMemo(
@@ -339,16 +356,16 @@ export function Assets() {
   );
 
   const liquidTotal = useMemo(
-    () => liquidAssets.reduce((s, a) => s + a.currentValue, 0),
-    [liquidAssets]
+    () => liquidAssets.reduce((s, a) => s + convert(a.currentValue, a.currency), 0),
+    [liquidAssets, convert]
   );
-  const semiLiquidTotal = useMemo(
-    () => semiLiquidAssets.reduce((s, a) => s + a.currentValue, 0),
-    [semiLiquidAssets]
+  const nearLiquidTotal = useMemo(
+    () => nearLiquidAssets.reduce((s, a) => s + convert(a.currentValue, a.currency), 0),
+    [nearLiquidAssets, convert]
   );
   const nonLiquidTotal = useMemo(
-    () => nonLiquidAssets.reduce((s, a) => s + a.currentValue, 0),
-    [nonLiquidAssets]
+    () => nonLiquidAssets.reduce((s, a) => s + convert(a.currentValue, a.currency), 0),
+    [nonLiquidAssets, convert]
   );
 
   async function handleSubmit(data: AssetInput) {
@@ -413,6 +430,7 @@ export function Assets() {
                   onEdit={openEdit}
                   onRemove={(id) => remove.mutate(id)}
                   onTransfer={openTransfer}
+                  onNearLiquid={setNearLiquidAsset}
                   format={format}
                 />
               ))}
@@ -428,11 +446,11 @@ export function Assets() {
         </div>
       </div>
 
-      {/* Semi-liquid assets */}
+      {/* Near-liquid assets */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-medium text-slate-400">Semi-liquid assets</h2>
-          <span className="text-sm text-white font-medium">{format(semiLiquidTotal, displayCurrency)}</span>
+          <h2 className="text-sm font-medium text-slate-400">Near-liquid assets</h2>
+          <span className="text-sm text-white font-medium">{format(nearLiquidTotal, displayCurrency)}</span>
         </div>
         <div className="overflow-hidden rounded-xl border border-slate-800">
           <table className="w-full text-left text-sm table-fixed">
@@ -445,20 +463,21 @@ export function Assets() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {semiLiquidAssets.map((asset) => (
+              {nearLiquidAssets.map((asset) => (
                 <AssetRow
                   key={asset.id}
                   asset={asset}
                   onEdit={openEdit}
                   onRemove={(id) => remove.mutate(id)}
                   onTransfer={openTransfer}
+                  onNearLiquid={setNearLiquidAsset}
                   format={format}
                 />
               ))}
-              {semiLiquidAssets.length === 0 && (
+              {nearLiquidAssets.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                    No semi-liquid assets yet.
+                    No near-liquid assets yet.
                   </td>
                 </tr>
               )}
@@ -491,6 +510,7 @@ export function Assets() {
                   onEdit={openEdit}
                   onRemove={(id) => remove.mutate(id)}
                   onTransfer={openTransfer}
+                  onNearLiquid={setNearLiquidAsset}
                   format={format}
                 />
               ))}
@@ -508,8 +528,8 @@ export function Assets() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <LiquidityChart liquid={liquidTotal} semiLiquid={semiLiquidTotal} nonLiquid={nonLiquidTotal} format={format} />
-        <AssetTransactionsChart assets={liquidAssets} format={format} />
+        <LiquidityChart liquid={liquidTotal} nearLiquid={nearLiquidTotal} nonLiquid={nonLiquidTotal} displayCurrency={displayCurrency} format={format} />
+        <AssetTransactionsChart assets={liquidAssets} format={format} convert={convert} displayCurrency={displayCurrency} />
       </div>
 
       {showForm && (
@@ -539,6 +559,13 @@ export function Assets() {
           sourceAsset={transferring}
           closeAccount={closeAccount}
           onClose={() => { setTransferring(null); setCloseAccount(false); }}
+        />
+      )}
+
+      {nearLiquidAsset && (
+        <NearLiquidModal
+          asset={nearLiquidAsset}
+          onClose={() => setNearLiquidAsset(null)}
         />
       )}
     </div>

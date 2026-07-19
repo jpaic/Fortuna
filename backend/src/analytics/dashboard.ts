@@ -63,7 +63,7 @@ analyticsRouter.get(
     ]);
 
     // ── Apply exclude filters ─────────────────────────────────
-    const fAssets = rawAssets.filter((a) => !excludeAssets.includes(a.id));
+    const fAssets = rawAssets.filter((a) => !excludeAssets.includes(a.id) && a.category !== "investment");
     const fInvestments = rawInvestments.filter((i) => !excludeInvTypes.includes(i.type));
     const fIncome = rawIncome.filter((i) => !excludeIncomeCats.includes(i.category));
     const fExpenses = rawExpenses.filter((e) => !excludeExpenseCats.includes(e.category));
@@ -143,13 +143,12 @@ analyticsRouter.get(
     availableYears.sort((a, b) => a - b);
 
     // ── Monthly income vs expenses (from cashflow_history) ────
+    const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const months: { label: string; key: string }[] = [];
     const monthKeys: string[] = [];
     for (let m = 0; m < 12; m++) {
       const key = `${selectedYear}-${String(m + 1).padStart(2, "0")}`;
-      const d = new Date(selectedYear, m, 1);
-      const label = d.toLocaleDateString(undefined, { month: "short" });
-      months.push({ label, key });
+      months.push({ label: MONTH_LABELS[m], key });
       monthKeys.push(key);
     }
 

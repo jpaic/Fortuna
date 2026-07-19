@@ -1,4 +1,8 @@
-CREATE TYPE asset_liquidity AS ENUM ('liquid', 'semi_liquid', 'illiquid');
+DO $$ BEGIN
+  CREATE TYPE asset_liquidity AS ENUM ('liquid', 'semi_liquid', 'illiquid');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 ALTER TABLE assets ADD COLUMN IF NOT EXISTS liquidity asset_liquidity NOT NULL DEFAULT 'illiquid';
 ALTER TABLE assets ADD COLUMN IF NOT EXISTS sub_category VARCHAR(50);

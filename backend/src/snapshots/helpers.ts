@@ -6,7 +6,7 @@ export async function upsertDailySnapshot(userId: string): Promise<void> {
      VALUES (
        $1,
        CURRENT_DATE,
-       (SELECT COALESCE(SUM(current_value), 0) FROM assets WHERE user_id = $1)
+       (SELECT COALESCE(SUM(current_value), 0) FROM assets WHERE user_id = $1 AND category != 'investment')
          + (SELECT COALESCE(SUM(current_value), 0) FROM investments WHERE user_id = $1),
        (SELECT COALESCE(SUM(current_balance), 0) FROM liabilities WHERE user_id = $1)
      )

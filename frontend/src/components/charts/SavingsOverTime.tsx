@@ -19,9 +19,32 @@ const sym = (c: string) =>
     .formatToParts(0)
     .find((p) => p.type === "currency")?.value ?? c;
 
+const NICE_STEPS = [5, 10, 15, 20, 25, 30, 40, 50];
+
+function niceStep(maxAbs: number): number {
+  if (maxAbs <= 0) return 5;
+  const raw = maxAbs / 10;
+  for (const s of NICE_STEPS) {
+    if (raw <= s) return s;
+  }
+  return 50;
+}
+
+function buildSymmetricTicks(domainMax: number, domainMin: number, step: number): number[] {
+  const ticks: number[] = [];
+  for (let v = domainMin; v <= domainMax; v += step) ticks.push(v);
+  return ticks;
+}
+
 export function SavingsOverTime({ data, currency }: Props) {
   const s = sym(currency);
   const withSavings = data.map((d) => ({ ...d, savings: d.income - d.expenses }));
+  const maxAbs = Math.max(...withSavings.map((d) => Math.abs(d.savings)), 0);
+  const step = niceStep(maxAbs);
+  const domainMax = Math.ceil(maxAbs / step) * step || step;
+  const hasNeg = withSavings.some((d) => d.savings < 0);
+  const domainMin = hasNeg ? -domainMax : 0;
+  const ticks = buildSymmetricTicks(domainMax, domainMin, step);
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -33,7 +56,8 @@ export function SavingsOverTime({ data, currency }: Props) {
           tick={{ fill: "#94a3b8", fontSize: 12 }}
           tickLine={false}
           axisLine={false}
-          tickCount={10}
+          domain={[domainMin, domainMax]}
+          ticks={ticks}
           tickFormatter={(v) => {
             if (Math.abs(v) >= 1000) return `${s}${(v / 1000).toFixed(0)}k`;
             return `${s}${v.toFixed(0)}`;

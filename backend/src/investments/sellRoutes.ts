@@ -4,7 +4,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { asyncHandler, ApiError } from "../middleware/error.js";
 import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
-import { upsertAssetHistory } from "../assets/helpers.js";
+import { upsertAssetHistory, syncInvestmentAsset, deleteInvestmentAsset } from "../assets/helpers.js";
 import { upsertInvestmentHistory } from "./helpers.js";
 
 const sellSchema = z.object({
@@ -29,11 +29,12 @@ investmentSellRouter.post(
       ticker: string | null;
       type: string;
       quantity: string;
+      average_buy_price: string;
       current_price: string;
       currency: string;
       purchase_date: string;
     }>(
-      `SELECT id, user_id, asset_name, ticker, type, quantity, current_price, currency, purchase_date
+      `SELECT id, user_id, asset_name, ticker, type, quantity, average_buy_price, current_price, currency, purchase_date
        FROM investments WHERE id = $1 AND user_id = $2`,
       [req.params.id, userId]
     );
@@ -80,12 +81,23 @@ investmentSellRouter.post(
     const remaining = available - quantity;
     if (remaining <= 0.00000001) {
       await query(`DELETE FROM investments WHERE id = $1`, [inv.id]);
+      await deleteInvestmentAsset(inv.id);
     } else {
       await query(`UPDATE investments SET quantity = $1 WHERE id = $2`, [remaining, inv.id]);
       await upsertInvestmentHistory(userId, {
         id: inv.id,
         current_value: remaining * currentPrice,
         quantity: remaining,
+      });
+      await syncInvestmentAsset(userId, {
+        id: inv.id,
+        asset_name: inv.asset_name,
+        type: inv.type,
+        quantity: remaining,
+        average_buy_price: Number(inv.average_buy_price),
+        current_price: currentPrice,
+        currency: inv.currency,
+        purchase_date: inv.purchase_date,
       });
     }
 

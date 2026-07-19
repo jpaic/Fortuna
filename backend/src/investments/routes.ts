@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createCrudRouter } from "../utils/crudRouter.js";
 import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
-import { upsertAssetHistory } from "../assets/helpers.js";
+import { upsertAssetHistory, syncInvestmentAsset, deleteInvestmentAsset } from "../assets/helpers.js";
 import { upsertInvestmentHistory } from "./helpers.js";
 
 const type = z.enum(["stock", "etf", "crypto", "bond", "fund"]);
@@ -110,6 +110,11 @@ export const investmentsRouter = createCrudRouter({
   createSchema,
   updateSchema,
   postMutation: async (userId, row, input) => {
+    if (!input && row) {
+      await deleteInvestmentAsset(row.id as string);
+    } else if (row) {
+      await syncInvestmentAsset(userId, row);
+    }
     await handlePurchaseExpense(userId, row, input ?? {});
     await upsertInvestmentHistory(userId, row);
     await upsertDailySnapshot(userId);

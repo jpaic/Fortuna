@@ -24,10 +24,10 @@ export const registerSchema = z
 
 export const assetSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  category: z.enum(["cash", "bank", "real_estate", "vehicle", "other"]),
+  category: z.enum(["cash", "bank", "investment", "real_estate", "vehicle", "other"]),
   bankName: z.string().optional(),
   subCategory: z.string().optional(),
-  liquidity: z.enum(["liquid", "semi_liquid", "illiquid"]).optional(),
+  liquidity: z.enum(["liquid", "near_liquid", "illiquid"]).optional(),
   purchaseValue: z.coerce.number().min(0),
   currentValue: z.coerce.number().min(0).optional(),
   currency: z.string().length(3, "Use a 3-letter currency code"),

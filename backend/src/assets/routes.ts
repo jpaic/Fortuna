@@ -17,7 +17,7 @@ const createBase = z.object({
   currency: z.string().length(3).default("EUR"),
   purchaseDate: z.string(), // ISO date
   notes: z.string().optional(),
-  liquidity: z.enum(["liquid", "semi_liquid", "illiquid"]).optional(),
+  liquidity: z.enum(["liquid", "near_liquid", "illiquid"]).optional(),
   payFromAssetId: z.string().uuid().optional(),
 });
 

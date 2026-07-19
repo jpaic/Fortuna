@@ -36,7 +36,7 @@ const tickFmt = (v: number, c: string) => {
   return `${s}${v.toFixed(0)}`;
 };
 
-export function AssetTransactionsChart({ assets, format }: { assets: Asset[]; format: (v: number, c: string) => string }) {
+export function AssetTransactionsChart({ assets, format, convert, displayCurrency }: { assets: Asset[]; format: (v: number, c: string) => string; convert: (amount: number, from: string) => number; displayCurrency: string }) {
   const [selectedId, setSelectedId] = useState<string>(assets[0]?.id ?? "");
   const selected = assets.find((a) => a.id === selectedId);
 
@@ -78,7 +78,7 @@ export function AssetTransactionsChart({ assets, format }: { assets: Asset[]; fo
         const eid = (e as any).assetId ?? (e as any).asset_id;
         const day = e.date.slice(0, 10);
         if (eid === selectedId && dayMap.has(day)) {
-          dayMap.get(day)!.outflows += e.amount;
+          dayMap.get(day)!.outflows += convert(e.amount, e.currency);
         }
       }
     }
@@ -88,7 +88,7 @@ export function AssetTransactionsChart({ assets, format }: { assets: Asset[]; fo
         const iid = (i as any).assetId ?? (i as any).asset_id;
         const day = i.date.slice(0, 10);
         if (iid === selectedId && dayMap.has(day)) {
-          dayMap.get(day)!.inflows += i.amount;
+          dayMap.get(day)!.inflows += convert(i.amount, i.currency);
         }
       }
     }
@@ -97,14 +97,15 @@ export function AssetTransactionsChart({ assets, format }: { assets: Asset[]; fo
       for (const t of transfers) {
         const day = t.date.slice(0, 10);
         if (dayMap.has(day)) {
-          if (t.direction === "in") dayMap.get(day)!.inflows += t.amount;
-          else dayMap.get(day)!.outflows += t.amount;
+          const converted = convert(t.amount, t.currency);
+          if (t.direction === "in") dayMap.get(day)!.inflows += converted;
+          else dayMap.get(day)!.outflows += converted;
         }
       }
     }
 
     return days.filter((d) => d.inflows > 0 || d.outflows > 0);
-  }, [selected, selectedId, expenses, incomes, transfers]);
+  }, [selected, selectedId, expenses, incomes, transfers, convert]);
 
   if (assets.length === 0) return null;
 
@@ -135,12 +136,12 @@ export function AssetTransactionsChart({ assets, format }: { assets: Asset[]; fo
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => tickFmt(v, selected.currency)}
+              tickFormatter={(v) => tickFmt(v, displayCurrency)}
             />
             <Tooltip
               contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
               formatter={(value, name) => [
-                format(Number(value), selected.currency),
+                format(Number(value), displayCurrency),
                 name === "inflows" ? "Inflows" : "Outflows",
               ]}
               labelStyle={{ color: "#94a3b8" }}
