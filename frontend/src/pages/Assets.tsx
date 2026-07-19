@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, ArrowLeftRight } from "lucide-react";
+import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, ArrowLeftRight, DollarSign } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
@@ -9,6 +9,7 @@ import { Modal } from "../components/ui/Modal";
 import { AssetForm } from "../components/forms/AssetForm";
 import { TransferModal } from "../components/TransferModal";
 import { NearLiquidModal } from "../components/NearLiquidModal";
+import { SellAssetModal } from "../components/SellAssetModal";
 import type { AssetInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 import { expenseLabel } from "../lib/expenseLabels";
@@ -38,6 +39,7 @@ function AssetRow({
   onRemove,
   onTransfer,
   onNearLiquid,
+  onSell,
   format,
 }: {
   asset: Asset;
@@ -45,6 +47,7 @@ function AssetRow({
   onRemove: (id: string) => void;
   onTransfer: (a: Asset, closeAccount?: boolean) => void;
   onNearLiquid: (a: Asset) => void;
+  onSell: (a: Asset) => void;
   format: (value: number, currency: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -52,6 +55,7 @@ function AssetRow({
   const isCloseAccount = asset.category === "bank" && asset.subCategory === "savings";
   const isNearLiquid = asset.liquidity === "near_liquid";
   const isInvestment = asset.category === "investment";
+  const isSellable = asset.category === "real_estate" || asset.category === "vehicle" || asset.category === "other" || isInvestment;
 
   const { data: history } = useQuery<AssetHistoryPoint[]>({
     queryKey: ["asset-history", asset.id],
@@ -180,6 +184,11 @@ function AssetRow({
           {isNearLiquid && !isInvestment && (
             <button onClick={() => onNearLiquid(asset)} className="text-slate-500 hover:text-yellow-400 mr-2" title="Near-liquid options">
               <ArrowLeftRight size={16} />
+            </button>
+          )}
+          {isSellable && (
+            <button onClick={() => onSell(asset)} className="text-slate-500 hover:text-purple-400 mr-2" title="Sell asset">
+              <DollarSign size={16} />
             </button>
           )}
           {!isInvestment && (
@@ -335,6 +344,7 @@ export function Assets() {
   const [transferring, setTransferring] = useState<Asset | null>(null);
   const [closeAccount, setCloseAccount] = useState(false);
   const [nearLiquidAsset, setNearLiquidAsset] = useState<Asset | null>(null);
+  const [sellingAsset, setSellingAsset] = useState<Asset | null>(null);
 
   function openTransfer(asset: Asset, isClose = false) {
     setTransferring(asset);
@@ -431,6 +441,7 @@ export function Assets() {
                   onRemove={(id) => remove.mutate(id)}
                   onTransfer={openTransfer}
                   onNearLiquid={setNearLiquidAsset}
+                  onSell={setSellingAsset}
                   format={format}
                 />
               ))}
@@ -471,6 +482,7 @@ export function Assets() {
                   onRemove={(id) => remove.mutate(id)}
                   onTransfer={openTransfer}
                   onNearLiquid={setNearLiquidAsset}
+                  onSell={setSellingAsset}
                   format={format}
                 />
               ))}
@@ -511,6 +523,7 @@ export function Assets() {
                   onRemove={(id) => remove.mutate(id)}
                   onTransfer={openTransfer}
                   onNearLiquid={setNearLiquidAsset}
+                  onSell={setSellingAsset}
                   format={format}
                 />
               ))}
@@ -566,6 +579,13 @@ export function Assets() {
         <NearLiquidModal
           asset={nearLiquidAsset}
           onClose={() => setNearLiquidAsset(null)}
+        />
+      )}
+
+      {sellingAsset && (
+        <SellAssetModal
+          asset={sellingAsset}
+          onClose={() => setSellingAsset(null)}
         />
       )}
     </div>

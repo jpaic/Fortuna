@@ -4,6 +4,8 @@ import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "./helpers.js";
 import { queryOne, query } from "../db/pool.js";
 import { getRates, convert } from "../utils/currency.js";
+import { requireAuth } from "../middleware/auth.js";
+import { asyncHandler, ApiError } from "../middleware/error.js";
 
 const category = z.enum(["cash", "bank", "real_estate", "vehicle", "other"]);
 
@@ -86,3 +88,49 @@ export const assetsRouter = createCrudRouter({
     await upsertDailySnapshot(userId);
   },
 });
+
+const sellAssetSchema = z.object({
+  targetAssetId: z.string().uuid(),
+  sellValue: z.number().min(0),
+});
+
+assetsRouter.post(
+  "/:id/sell",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const userId = req.userId!;
+    const { targetAssetId, sellValue } = sellAssetSchema.parse(req.body);
+
+    const asset = await queryOne<{
+      id: string; name: string; category: string; current_value: string; currency: string;
+    }>(
+      `SELECT id, name, category, current_value, currency FROM assets WHERE id = $1 AND user_id = $2`,
+      [req.params.id, userId]
+    );
+    if (!asset) throw new ApiError(404, "Asset not found");
+
+    const target = await queryOne<{ id: string; current_value: string }>(
+      `SELECT id, current_value FROM assets WHERE id = $1 AND user_id = $2`,
+      [targetAssetId, userId]
+    );
+    if (!target) throw new ApiError(404, "Target account not found");
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    await query(
+      `INSERT INTO income (user_id, source, category, amount, currency, date, frequency, notes)
+       VALUES ($1, $2, 'capital_gains', $3, $4, $5, 'one_time', $6)`,
+      [userId, asset.name, sellValue, asset.currency, today, `Sale of ${asset.name}`]
+    );
+
+    const newTargetValue = Number(target.current_value) + sellValue;
+    await query(`UPDATE assets SET current_value = $1 WHERE id = $2`, [newTargetValue, targetAssetId]);
+    await upsertAssetHistory(userId, { id: targetAssetId, current_value: newTargetValue });
+
+    await query(`DELETE FROM assets WHERE id = $1`, [asset.id]);
+
+    await upsertDailySnapshot(userId);
+
+    res.json({ sold: asset.name, sellValue, targetAssetId });
+  })
+);

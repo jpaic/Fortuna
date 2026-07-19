@@ -67,7 +67,7 @@ export function AssetTransactionsChart({ assets, format, convert, displayCurrenc
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
-      const label = `${d.toLocaleString(undefined, { month: "short" })} ${d.getDate()}`;
+      const label = d.toLocaleString(undefined, { month: "short" });
       days.push({ date: key, label, inflows: 0, outflows: 0 });
     }
 
