@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/error.js";
-import { refreshUserPrices, getLastPriceUpdate, fetchSinglePrice, fetchPriceHistory, fetchPriceTimeseries } from "./service.js";
+import { refreshUserPrices, getLastPriceUpdate, fetchSinglePrice, fetchPriceHistory, fetchPriceTimeseries, searchYahooSymbols } from "./service.js";
 
 export const pricesRouter = Router();
 pricesRouter.use(requireAuth);
@@ -60,18 +60,32 @@ pricesRouter.get(
     const ticker = String(req.query.ticker ?? "").toUpperCase();
     const type = String(req.query.type ?? "stock");
     const currency = String(req.query.currency ?? "EUR");
+    const exchange = req.query.exchange ? String(req.query.exchange) : undefined;
 
     if (!ticker) {
       res.status(400).json({ error: "ticker is required" });
       return;
     }
 
-    const price = await fetchSinglePrice(ticker, type, currency);
+    const price = await fetchSinglePrice(ticker, type, currency, exchange);
     if (price === null) {
       res.status(404).json({ error: "Price not found" });
       return;
     }
     res.json({ price });
+  })
+);
+
+pricesRouter.get(
+  "/search",
+  asyncHandler(async (req, res) => {
+    const q = String(req.query.q ?? "").trim();
+    if (!q) {
+      res.status(400).json({ error: "q is required" });
+      return;
+    }
+    const results = await searchYahooSymbols(q);
+    res.json(results);
   })
 );
 

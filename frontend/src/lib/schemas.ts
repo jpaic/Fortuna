@@ -42,6 +42,7 @@ export const assetSchema = z.object({
 export const investmentSchema = z.object({
   assetName: z.string().min(1, "Name is required"),
   ticker: z.string().optional(),
+  exchange: z.string().optional(),
   type: z.enum(["stock", "etf", "crypto", "bond", "fund"]),
   quantity: z.coerce.number().positive(),
   averageBuyPrice: z.coerce.number().min(0),

@@ -43,9 +43,9 @@ function InvestmentRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { data: history } = useQuery<PriceHistory>({
-    queryKey: ["price-history", inv.ticker, inv.type, inv.currency],
+    queryKey: ["price-history", inv.ticker, inv.type, inv.currency, inv.exchange],
     queryFn: async () =>
-      (await api.get("/prices/history", { params: { ticker: inv.ticker, type: inv.type, currency: inv.currency } })).data,
+      (await api.get("/prices/history", { params: { ticker: inv.ticker, type: inv.type, currency: inv.currency, exchange: inv.exchange } })).data,
     enabled: expanded && !!inv.ticker,
     staleTime: 5 * 60_000,
   });
@@ -74,7 +74,7 @@ function InvestmentRow({
           >
             {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             {inv.assetName}
-            {inv.ticker && <span className="text-slate-500">({inv.ticker})</span>}
+            {inv.ticker && <span className="text-slate-500">({inv.ticker}{inv.exchange ? ` ${inv.exchange}` : ""})</span>}
           </button>
         </td>
         <td className="px-4 py-3">{Number(inv.quantity)}</td>
@@ -319,6 +319,7 @@ export function Investments() {
             defaultValues={editing ? {
               assetName: editing.assetName,
               ticker: editing.ticker,
+              exchange: editing.exchange,
               type: editing.type,
               quantity: editing.quantity,
               averageBuyPrice: editing.averageBuyPrice,

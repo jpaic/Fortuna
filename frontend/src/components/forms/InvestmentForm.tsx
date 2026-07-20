@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { investmentSchema, type InvestmentFormValues, type InvestmentInput } from "../../lib/schemas";
@@ -9,6 +9,14 @@ import type { Asset } from "../../types";
 import { CURRENCIES } from "../../lib/currencies";
 
 const TYPES = ["stock", "etf", "crypto", "bond", "fund"] as const;
+
+interface SearchResult {
+  symbol: string;
+  name: string;
+  exchange: string;
+  exchangeSuffix: string;
+  type: string;
+}
 
 const inputClass =
   "w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none";
@@ -39,24 +47,32 @@ export function InvestmentForm({
   const ticker = watch("ticker");
   const type = watch("type");
   const currency = watch("currency");
+  const exchange = watch("exchange");
   const [fetching, setFetching] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const [showExchangeSearch, setShowExchangeSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: cashAssets } = useQuery<Asset[]>({
     queryKey: ["assets"],
     queryFn: async () => (await api.get("/assets")).data,
   });
 
-  useEffect(() => {
+  const fetchPrice = useCallback((t: string, tp: string, c: string, ex?: string | null) => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (!ticker || !type) return;
+    if (!t || !tp) return;
 
     timerRef.current = setTimeout(async () => {
       setFetching(true);
       try {
-        const { data } = await api.get<{ price: number }>("/prices/quote", {
-          params: { ticker: ticker.toUpperCase(), type, currency },
-        });
+        const params: Record<string, string> = { ticker: t.toUpperCase(), type: tp, currency: c };
+        if (ex) params.exchange = ex;
+        const { data } = await api.get<{ price: number }>("/prices/quote", { params });
         setValue("currentPrice", data.price, { shouldValidate: true });
       } catch {
         // price not found — leave field empty for manual entry
@@ -64,9 +80,59 @@ export function InvestmentForm({
         setFetching(false);
       }
     }, 500);
+  }, [setValue]);
 
+  useEffect(() => {
+    fetchPrice(ticker ?? "", type, currency, exchange);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [ticker, type, currency, setValue]);
+  }, [ticker, type, currency, exchange, fetchPrice]);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    searchTimerRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { data } = await api.get<SearchResult[]>("/prices/search", { params: { q: query } });
+        setSearchResults(data);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowExchangeSearch(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function selectExchange(result: SearchResult) {
+    const baseTicker = result.symbol.includes(".")
+      ? result.symbol.slice(0, result.symbol.lastIndexOf("."))
+      : result.symbol;
+    setValue("ticker", baseTicker.toUpperCase(), { shouldValidate: true });
+    setValue("exchange", result.exchangeSuffix || undefined, { shouldValidate: true });
+    setShowExchangeSearch(false);
+    setSearchResults([]);
+    setSearchQuery("");
+  }
+
+  function clearExchange() {
+    setValue("exchange", undefined, { shouldValidate: true });
+  }
 
   const payFromAssets = cashAssets?.filter((a) => (a.category === "cash") || (a.category === "bank" && a.subCategory === "checking")) ?? [];
 
@@ -82,9 +148,69 @@ export function InvestmentForm({
         </div>
         <div>
           <label className={labelClass}>Ticker</label>
-          <input {...register("ticker")} className={inputClass} placeholder="AAPL" />
+          <div className="flex gap-2">
+            <input {...register("ticker")} className={inputClass} placeholder="AAPL" />
+            {type !== "crypto" && (
+              <button
+                type="button"
+                onClick={() => setShowExchangeSearch(true)}
+                className="shrink-0 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-slate-300 hover:border-emerald-500 hover:text-white transition-colors"
+                title="Search exchanges"
+              >
+                Exchange
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {exchange && (
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <span>Exchange:</span>
+          <span className="inline-flex items-center gap-1 rounded-md bg-slate-800 border border-slate-700 px-2 py-1 text-emerald-400">
+            {exchange}
+            <button type="button" onClick={clearExchange} className="ml-1 text-slate-500 hover:text-white">&times;</button>
+          </span>
+        </div>
+      )}
+
+      {showExchangeSearch && (
+        <div ref={searchContainerRef} className="rounded-lg border border-slate-700 bg-slate-900 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-400">Search for a ticker to find the right exchange</p>
+            <button type="button" onClick={() => { setShowExchangeSearch(false); setSearchResults([]); }} className="text-xs text-slate-500 hover:text-white">&times;</button>
+          </div>
+          <input
+            autoFocus
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            className={inputClass}
+            placeholder="Search ticker or company name…"
+          />
+          {searching && <p className="text-xs text-slate-500 animate-pulse">Searching…</p>}
+          {searchResults.length > 0 && (
+            <div className="max-h-48 overflow-y-auto divide-y divide-slate-800">
+              {searchResults.filter((r) => r.type !== "OPTION" && r.type !== "FUTURE").map((r) => (
+                <button
+                  key={r.symbol}
+                  type="button"
+                  onClick={() => selectExchange(r)}
+                  className="w-full flex items-center justify-between px-2 py-2 text-left hover:bg-slate-800 rounded transition-colors"
+                >
+                  <div>
+                    <p className="text-sm text-white">{r.symbol}</p>
+                    <p className="text-xs text-slate-500 truncate max-w-[200px]">{r.name}</p>
+                  </div>
+                  <span className="text-xs text-slate-400 shrink-0 ml-2">{r.exchange}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
+            <p className="text-xs text-slate-500">No results found.</p>
+          )}
+        </div>
+      )}
 
       <div>
         <label className={labelClass}>Type</label>

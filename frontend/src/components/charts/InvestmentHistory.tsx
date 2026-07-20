@@ -106,11 +106,11 @@ function buildQuantityTimeline(
   return qtyByDate;
 }
 
-function usePriceTimeseries(ticker: string, type: string, currency: string, enabled: boolean) {
+function usePriceTimeseries(ticker: string, type: string, currency: string, exchange: string | null | undefined, enabled: boolean) {
   return useQuery<PricePoint[]>({
-    queryKey: ["price-timeseries", ticker, type, currency],
+    queryKey: ["price-timeseries", ticker, type, currency, exchange],
     queryFn: async () =>
-      (await api.get("/prices/timeseries", { params: { ticker, type, currency } })).data,
+      (await api.get("/prices/timeseries", { params: { ticker, type, currency, exchange } })).data,
     enabled,
     staleTime: 24 * 60 * 60_000,
     retry: 2,
@@ -162,7 +162,7 @@ function buildChartDataForInvestment(
 
 function SingleInvestmentChart({ inv }: { inv: Investment }) {
   const { data: timeseries, isPending: pricePending } = usePriceTimeseries(
-    inv.ticker!, inv.type, inv.currency, true
+    inv.ticker!, inv.type, inv.currency, inv.exchange, true
   );
   const { data: history, isPending: histPending } = useInvestmentHistory(inv.id, true);
 
@@ -180,9 +180,9 @@ function AllInvestmentsChart({ holdings, displayCurrency }: { holdings: Investme
 
   const priceQueries = useQueries({
     queries: withTicker.map((inv) => ({
-      queryKey: ["price-timeseries", inv.ticker, inv.type, inv.currency],
+      queryKey: ["price-timeseries", inv.ticker, inv.type, inv.currency, inv.exchange],
       queryFn: async () =>
-        (await api.get("/prices/timeseries", { params: { ticker: inv.ticker, type: inv.type, currency: inv.currency } })).data as PricePoint[],
+        (await api.get("/prices/timeseries", { params: { ticker: inv.ticker, type: inv.type, currency: inv.currency, exchange: inv.exchange } })).data as PricePoint[],
       enabled: true,
       staleTime: 24 * 60 * 60_000,
       retry: 2,

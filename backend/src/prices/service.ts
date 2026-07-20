@@ -61,8 +61,14 @@ const EUROPEAN_SUFFIXES = ["", ".L", ".AS", ".MI", ".PA", ".DE", ".SW", ".VI"];
 
 async function fetchYahooPrice(
   ticker: string,
-  currency: string
+  currency: string,
+  exchange?: string | null
 ): Promise<number | null> {
+  // If an explicit exchange suffix is stored, use it directly
+  if (exchange) {
+    return fetchYahooQuote(ticker + exchange);
+  }
+
   // If ticker already has an exchange suffix, try it directly
   if (/\.[A-Z]{1,4}$/.test(ticker)) {
     return fetchYahooQuote(ticker);
@@ -108,17 +114,47 @@ async function fetchCoinGeckoPrice(
   }
 }
 
+// ── Yahoo Finance symbol search ───────────────────────────────
+export interface YahooSearchResult {
+  symbol: string;
+  name: string;
+  exchange: string;
+  exchangeSuffix: string;
+  type: string;
+}
+
+export async function searchYahooSymbols(query: string): Promise<YahooSearchResult[]> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=10&newsCount=0&listsCount=0`;
+    const resp = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!resp.ok) return [];
+    const data = (await resp.json()) as {
+      quotes?: { symbol: string; shortname?: string; longname?: string; exchange?: string; exchDisp?: string; quoteType?: string }[];
+    };
+    return (data.quotes ?? []).map((q) => ({
+      symbol: q.symbol,
+      name: q.longname ?? q.shortname ?? q.symbol,
+      exchange: q.exchDisp ?? q.exchange ?? "",
+      exchangeSuffix: q.symbol.includes(".") ? q.symbol.slice(q.symbol.lastIndexOf(".")) : "",
+      type: q.quoteType ?? "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
 // ── Single ticker lookup (used by the investment form) ───────
 export async function fetchSinglePrice(
   ticker: string,
   type: string,
-  currency: string
+  currency: string,
+  exchange?: string | null
 ): Promise<number | null> {
   if (type === "crypto") {
     const coinId = CRYPTO_MAP[ticker.toUpperCase()] ?? ticker.toLowerCase();
     return fetchCoinGeckoPrice(coinId, currency);
   }
-  return fetchYahooPrice(ticker, currency);
+  return fetchYahooPrice(ticker, currency, exchange);
 }
 
 // ── Price history: daily / weekly / monthly changes ──────────
@@ -137,12 +173,14 @@ export interface PriceHistory {
 
 async function fetchYahooHistory(
   ticker: string,
-  currency: string
+  currency: string,
+  exchange?: string | null
 ): Promise<PriceHistory> {
   const headers = { "User-Agent": "Mozilla/5.0" };
+  const fullTicker = exchange ? ticker + exchange : ticker;
 
   async function getRange(range: string): Promise<number | null> {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=${range}`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(fullTicker)}?interval=1d&range=${range}`;
     const resp = await fetch(url, { headers });
     if (!resp.ok) return null;
     const data = (await resp.json()) as {
@@ -236,7 +274,8 @@ function historyCacheKey(ticker: string, type: string, currency: string) {
 export async function fetchPriceHistory(
   ticker: string,
   type: string,
-  currency: string
+  currency: string,
+  exchange?: string | null
 ): Promise<PriceHistory> {
   const key = historyCacheKey(ticker, type, currency);
   const cached = historyCache.get(key);
@@ -247,7 +286,7 @@ export async function fetchPriceHistory(
     const coinId = CRYPTO_MAP[ticker.toUpperCase()] ?? ticker.toLowerCase();
     data = await fetchCoinGeckoHistory(coinId, currency);
   } else {
-    data = await fetchYahooHistory(ticker, currency);
+    data = await fetchYahooHistory(ticker, currency, exchange);
   }
 
   historyCache.set(key, { data, ts: Date.now() });
@@ -271,7 +310,8 @@ function tsCacheKey(ticker: string, type: string, currency: string) {
 export async function fetchPriceTimeseries(
   ticker: string,
   type: string,
-  currency: string
+  currency: string,
+  exchange?: string | null
 ): Promise<PricePoint[]> {
   const key = tsCacheKey(ticker, type, currency);
   const cached = timeseriesCache.get(key);
@@ -282,7 +322,7 @@ export async function fetchPriceTimeseries(
     const coinId = CRYPTO_MAP[ticker.toUpperCase()] ?? ticker.toLowerCase();
     data = await fetchCoinGeckoTimeseries(coinId, currency);
   } else {
-    data = await fetchYahooTimeseries(ticker, currency);
+    data = await fetchYahooTimeseries(ticker, currency, exchange);
   }
 
   if (data.length > 0) {
@@ -293,10 +333,12 @@ export async function fetchPriceTimeseries(
 
 async function fetchYahooTimeseries(
   ticker: string,
-  currency: string
+  currency: string,
+  exchange?: string | null
 ): Promise<PricePoint[]> {
   const headers = { "User-Agent": "Mozilla/5.0" };
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1y`;
+  const fullTicker = exchange ? ticker + exchange : ticker;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(fullTicker)}?interval=1d&range=1y`;
   try {
     const resp = await fetch(url, { headers });
     if (!resp.ok) return [];
@@ -362,6 +404,7 @@ async function fetchCoinGeckoTimeseries(
 interface InvestmentRow {
   id: string;
   ticker: string | null;
+  exchange: string | null;
   type: string;
   currency: string;
   current_price: string;
@@ -371,7 +414,7 @@ export async function refreshUserPrices(
   userId: string
 ): Promise<{ updated: number; failed: number }> {
   const investments = await query<InvestmentRow>(
-    `SELECT id, ticker, type, currency, current_price
+    `SELECT id, ticker, exchange, type, currency, current_price
      FROM investments WHERE user_id = $1 AND ticker IS NOT NULL AND ticker != ''`,
     [userId]
   );
@@ -380,7 +423,7 @@ export async function refreshUserPrices(
 
   // Separate by type
   const cryptoIds: { id: string; ticker: string; currency: string }[] = [];
-  const yahooIds: { id: string; ticker: string; currency: string }[] = [];
+  const yahooIds: { id: string; ticker: string; currency: string; exchange: string | null }[] = [];
 
   for (const inv of investments) {
     const ticker = inv.ticker!.toUpperCase();
@@ -393,7 +436,7 @@ export async function refreshUserPrices(
         cryptoIds.push({ id: inv.id, ticker: ticker.toLowerCase(), currency: inv.currency });
       }
     } else {
-      yahooIds.push({ id: inv.id, ticker, currency: inv.currency });
+      yahooIds.push({ id: inv.id, ticker, currency: inv.currency, exchange: inv.exchange });
     }
   }
 
@@ -402,7 +445,7 @@ export async function refreshUserPrices(
 
   // Fetch Yahoo Finance prices (stocks, ETFs, bonds, funds)
   for (const inv of yahooIds) {
-    const price = await fetchYahooPrice(inv.ticker, inv.currency);
+    const price = await fetchYahooPrice(inv.ticker, inv.currency, inv.exchange);
     if (price !== null && price > 0) {
       await query(
         `UPDATE investments SET current_price = $1, price_last_updated = now()

@@ -18,6 +18,7 @@ const TYPE_TO_EXPENSE_CATEGORY: Record<string, string> = {
 const createSchema = z.object({
   assetName: z.string().min(1),
   ticker: z.string().optional(),
+  exchange: z.string().optional(),
   type,
   quantity: z.number().positive(),
   averageBuyPrice: z.number().min(0),
@@ -36,6 +37,7 @@ const updateSchema = createSchema.partial();
 const columns = {
   assetName: "asset_name",
   ticker: "ticker",
+  exchange: "exchange",
   type: "type",
   quantity: "quantity",
   averageBuyPrice: "average_buy_price",

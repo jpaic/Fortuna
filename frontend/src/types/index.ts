@@ -38,6 +38,7 @@ export interface Investment {
   userId: string;
   assetName: string;
   ticker?: string;
+  exchange?: string;
   type: InvestmentType;
   quantity: number;
   averageBuyPrice: number;
