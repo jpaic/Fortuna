@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createCrudRouter } from "../utils/crudRouter.js";
 import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
-import { upsertAssetHistory, syncInvestmentAsset, deleteInvestmentAsset } from "../assets/helpers.js";
+import { upsertAssetHistory, syncInvestmentAsset, deleteInvestmentAsset, toDateStr } from "../assets/helpers.js";
 import { upsertInvestmentHistory } from "./helpers.js";
 
 const type = z.enum(["stock", "etf", "crypto", "bond", "fund"]);
@@ -26,7 +26,7 @@ const createSchema = z.object({
   broker: z.string().optional(),
   currency: z.string().length(3).default("EUR"),
   purchaseDate: z.string(),
-  assetId: z.string().uuid().optional(),
+  assetId: z.string().optional(),
 });
 
 // current_value / profit_loss / roi_percent are generated columns
@@ -68,7 +68,7 @@ async function handlePurchaseExpense(
   const quantity = Number(row.quantity ?? input.quantity ?? 0);
   const avgPrice = Number(row.average_buy_price ?? input.averageBuyPrice ?? 0);
   const currency = (row.currency ?? input.currency ?? "EUR") as string;
-  const purchaseDate = (row.purchase_date ?? input.purchaseDate ?? new Date().toISOString().slice(0, 10)) as string;
+  const purchaseDate = toDateStr(row.purchase_date ?? input.purchaseDate);
   const investmentType = (row.type ?? input.type ?? "stock") as string;
 
   const totalCost = quantity * avgPrice;
@@ -80,8 +80,8 @@ async function handlePurchaseExpense(
 
   // Create expense entry
   await query(
-    `INSERT INTO expenses (user_id, category, merchant, amount, currency, date, frequency, notes)
-     VALUES ($1, $2, $3, $4, $5, $6, 'one_time', $7)`,
+    `INSERT INTO expenses (user_id, category, merchant, amount, currency, date, frequency, notes, asset_id)
+     VALUES ($1, $2, $3, $4, $5, $6, 'one_time', $7, $8)`,
     [
       userId,
       expenseCategory,
@@ -90,6 +90,7 @@ async function handlePurchaseExpense(
       currency,
       purchaseDate,
       `Auto-created: ${investmentType.toUpperCase()} purchase`,
+      assetId,
     ]
   );
 
@@ -118,9 +119,14 @@ export const investmentsRouter = createCrudRouter({
       } else if (row) {
         await syncInvestmentAsset(userId, row);
       }
-      await handlePurchaseExpense(userId, row, input ?? {});
       await upsertInvestmentHistory(userId, row);
       await upsertDailySnapshot(userId);
-    } catch (e) { console.error("investment postMutation failed:", e); }
+    } catch (e) { console.error("investment postMutation (sync/history/snapshot) failed:", e); }
+
+    if (row && input) {
+      try {
+        await handlePurchaseExpense(userId, row, input);
+      } catch (e) { console.error("investment purchase expense failed:", e); }
+    }
   },
 });

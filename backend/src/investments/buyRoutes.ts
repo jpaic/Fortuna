@@ -98,8 +98,8 @@ investmentBuyRouter.post(
       const expenseCategory = TYPE_TO_EXPENSE_CATEGORY[inv.type] ?? "stocks";
 
       await query(
-        `INSERT INTO expenses (user_id, category, merchant, amount, currency, date, frequency, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, 'one_time', $7)`,
+        `INSERT INTO expenses (user_id, category, merchant, amount, currency, date, frequency, notes, asset_id)
+         VALUES ($1, $2, $3, $4, $5, $6, 'one_time', $7, $8)`,
         [
           userId,
           expenseCategory,
@@ -108,6 +108,7 @@ investmentBuyRouter.post(
           inv.currency,
           today,
           `Auto-created: ${inv.type.toUpperCase()} buy ${quantity} @ ${pricePerUnit}`,
+          assetId,
         ]
       );
     }

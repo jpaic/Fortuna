@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Trash2, Pencil, RefreshCw, ChevronDown, ChevronRight, ArrowUpRight } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -228,6 +228,21 @@ export function Investments() {
 
   const holdings = list.data ?? [];
 
+  const kpis = useMemo(() => {
+    if (holdings.length === 0) return null;
+    let totalInvested = 0;
+    let totalMarket = 0;
+    let totalPnL = 0;
+    for (const inv of holdings) {
+      const cost = Number(inv.averageBuyPrice) * Number(inv.quantity);
+      totalInvested += cost;
+      totalMarket += Number(inv.currentValue);
+      totalPnL += Number(inv.profitLoss);
+    }
+    const avgRoi = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0;
+    return { totalInvested, totalMarket, totalPnL, avgRoi };
+  }, [holdings]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -261,6 +276,31 @@ export function Investments() {
           </button>
         </div>
       </div>
+
+      {kpis && (
+        <div className="grid grid-cols-4 gap-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <p className="text-xs text-slate-500 mb-1">Total Invested</p>
+            <p className="text-xl font-semibold text-white">{format(kpis.totalInvested, displayCurrency)}</p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <p className="text-xs text-slate-500 mb-1">Market Value</p>
+            <p className="text-xl font-semibold text-white">{format(kpis.totalMarket, displayCurrency)}</p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <p className="text-xs text-slate-500 mb-1">Total P/L</p>
+            <p className={`text-xl font-semibold ${kpis.totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              {kpis.totalPnL >= 0 ? "+" : ""}{format(kpis.totalPnL, displayCurrency)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <p className="text-xs text-slate-500 mb-1">Avg ROI</p>
+            <p className={`text-xl font-semibold ${kpis.avgRoi >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              {kpis.avgRoi >= 0 ? "+" : ""}{kpis.avgRoi.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-slate-800">
         <table className="w-full text-left text-sm">

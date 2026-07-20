@@ -1,4 +1,13 @@
-import { query } from "../db/pool.js";
+import { query, queryOne } from "../db/pool.js";
+
+/** Convert a raw DB value (string, Date, etc.) to a YYYY-MM-DD date string. */
+export function toDateStr(val: unknown): string {
+  if (val == null || val === "") return new Date().toISOString().slice(0, 10);
+  if (val instanceof Date) return val.toISOString().slice(0, 10);
+  const s = String(val).slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s;
+  try { return new Date(s).toISOString().slice(0, 10); } catch { return new Date().toISOString().slice(0, 10); }
+}
 
 /**
  * Upsert today's value snapshot for a single asset.
@@ -37,22 +46,31 @@ export async function syncInvestmentAsset(
   const avgBuy = Number(investment.average_buy_price);
   const curPrice = Number(investment.current_price);
   const currency = investment.currency as string;
-  const purchaseDate = String(investment.purchase_date ?? "").slice(0, 10);
+  const purchaseDate = toDateStr(investment.purchase_date);
 
   const purchaseValue = qty * avgBuy;
   const currentValue = qty * curPrice;
 
-  await query(
-    `INSERT INTO assets (user_id, name, category, sub_category, liquidity,
-                         purchase_value, current_value, currency, purchase_date, investment_id)
-     VALUES ($1, $2, 'investment', $3, 'near_liquid', $4, $5, $6, $7, $8)
-     ON CONFLICT (investment_id) DO UPDATE SET
-       name = EXCLUDED.name,
-       sub_category = EXCLUDED.sub_category,
-       purchase_value = EXCLUDED.purchase_value,
-       current_value = EXCLUDED.current_value`,
-    [userId, name, type, purchaseValue, currentValue, currency, purchaseDate, investmentId]
+  const existing = await queryOne<{ id: string }>(
+    `SELECT id FROM assets WHERE investment_id = $1`,
+    [investmentId]
   );
+
+  if (existing) {
+    await query(
+      `UPDATE assets SET name = $1, sub_category = $2, purchase_value = $3,
+                         current_value = $4, currency = $5, purchase_date = $6
+       WHERE id = $7`,
+      [name, type, purchaseValue, currentValue, currency, purchaseDate, existing.id]
+    );
+  } else {
+    await query(
+      `INSERT INTO assets (user_id, name, category, sub_category, liquidity,
+                           purchase_value, current_value, currency, purchase_date, investment_id)
+       VALUES ($1, $2, 'investment', $3, 'near_liquid', $4, $5, $6, $7, $8)`,
+      [userId, name, type, purchaseValue, currentValue, currency, purchaseDate, investmentId]
+    );
+  }
 }
 
 /**

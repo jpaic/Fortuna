@@ -67,6 +67,11 @@ export function ExpenseCharts({ entries }: { entries: Expense[] }) {
 
   const allMonth = useMemo(() => [...monthly, ...recurringMonthly], [monthly, recurringMonthly]);
 
+  const monthTotal = useMemo(
+    () => allMonth.reduce((sum, e) => sum + convert(e.amount, e.currency), 0),
+    [allMonth, convert]
+  );
+
   const categoryData = useMemo(() => {
     const map = new Map<string, number>();
     for (const e of allMonth) {
@@ -91,6 +96,11 @@ export function ExpenseCharts({ entries }: { entries: Expense[] }) {
       .map(([category, value]) => ({ category, value, percent: Math.round((value / total) * 100) }))
       .filter((d) => d.value > 0);
   }, [allMonth, selectedCategory, convert]);
+
+  const merchantTotal = useMemo(
+    () => merchantData.reduce((sum, d) => sum + d.value, 0),
+    [merchantData]
+  );
 
   const trendData = useMemo(() => {
     const map = new Map<string, number>();
@@ -118,7 +128,10 @@ export function ExpenseCharts({ entries }: { entries: Expense[] }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Category donut */}
         <div className="rounded-xl border border-slate-800 p-4">
-          <h3 className="text-sm font-medium text-slate-400 mb-3">By Category — {new Date().toLocaleString(undefined, { month: "long", year: "numeric" })}</h3>
+          <div className="flex items-baseline justify-between mb-3">
+            <h3 className="text-sm font-medium text-slate-400">By Category — {new Date().toLocaleString(undefined, { month: "long", year: "numeric" })}</h3>
+            <p className="text-lg font-semibold text-white">{format(monthTotal, displayCurrency)}</p>
+          </div>
           {categoryData.length === 0 ? (
             <p className="text-slate-500 text-sm text-center py-8">No expenses this month.</p>
           ) : (
@@ -176,14 +189,19 @@ export function ExpenseCharts({ entries }: { entries: Expense[] }) {
             <h3 className="text-sm font-medium text-slate-400">
               {selectedCategory ? `Merchants — ${expenseLabel(selectedCategory)}` : "By Merchant"}
             </h3>
-            {selectedCategory && (
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className="text-xs text-emerald-400 hover:text-emerald-300"
-              >
-                Clear filter
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {selectedCategory && merchantData.length > 0 && (
+                <p className="text-lg font-semibold text-white">{format(merchantTotal, displayCurrency)}</p>
+              )}
+              {selectedCategory && (
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className="text-xs text-emerald-400 hover:text-emerald-300"
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
           </div>
           {!selectedCategory ? (
             <p className="text-slate-500 text-sm text-center py-8">Click a category slice to drill down.</p>
