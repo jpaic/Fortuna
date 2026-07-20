@@ -82,7 +82,7 @@ export const expensesRouter = createCrudRouter({
   createSchema,
   updateSchema,
   postMutation: async (userId, row, input) => {
-    await handleAssetDeduction(userId, input ?? {});
-    await syncCashflowForEntry(userId, "expenses", row);
+    try { await handleAssetDeduction(userId, input ?? {}); } catch (e) { console.error("handleAssetDeduction failed:", e); }
+    try { await syncCashflowForEntry(userId, "expenses", row); } catch (e) { console.error("syncCashflowForEntry failed:", e); }
   },
 });

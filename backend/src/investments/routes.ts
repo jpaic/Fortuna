@@ -110,13 +110,15 @@ export const investmentsRouter = createCrudRouter({
   createSchema,
   updateSchema,
   postMutation: async (userId, row, input) => {
-    if (!input && row) {
-      await deleteInvestmentAsset(row.id as string);
-    } else if (row) {
-      await syncInvestmentAsset(userId, row);
-    }
-    await handlePurchaseExpense(userId, row, input ?? {});
-    await upsertInvestmentHistory(userId, row);
-    await upsertDailySnapshot(userId);
+    try {
+      if (!input && row) {
+        await deleteInvestmentAsset(row.id as string);
+      } else if (row) {
+        await syncInvestmentAsset(userId, row);
+      }
+      await handlePurchaseExpense(userId, row, input ?? {});
+      await upsertInvestmentHistory(userId, row);
+      await upsertDailySnapshot(userId);
+    } catch (e) { console.error("investment postMutation failed:", e); }
   },
 });

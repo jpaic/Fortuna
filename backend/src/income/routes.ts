@@ -74,7 +74,7 @@ export const incomeRouter = createCrudRouter({
   createSchema,
   updateSchema,
   postMutation: async (userId, row, input) => {
-    await handleAssetAddition(userId, input ?? {});
-    await syncCashflowForEntry(userId, "income", row);
+    try { await handleAssetAddition(userId, input ?? {}); } catch (e) { console.error("handleAssetAddition failed:", e); }
+    try { await syncCashflowForEntry(userId, "income", row); } catch (e) { console.error("syncCashflowForEntry failed:", e); }
   },
 });
