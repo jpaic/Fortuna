@@ -177,6 +177,7 @@ export function Investments() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-status"] });
       queryClient.invalidateQueries({ queryKey: ["investments"] });
+      queryClient.invalidateQueries({ queryKey: ["assets"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     },
   });
