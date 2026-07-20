@@ -11,6 +11,7 @@ import { useCurrency } from "../context/CurrencyContext";
 import { expenseLabel } from "../lib/expenseLabels";
 import { frequencyLabel } from "../lib/frequencyLabels";
 import { assetDisplayName } from "../lib/assetDisplayName";
+import { ExpenseCharts } from "../components/charts/ExpenseCharts";
 
 export function Expenses() {
   const { list, create, update, remove } = useResource<ExpenseEntry>("expenses");
@@ -59,6 +60,10 @@ export function Expenses() {
           <Plus size={16} /> Add expense
         </button>
       </div>
+
+      {list.data && list.data.length > 0 && (
+        <ExpenseCharts entries={list.data} />
+      )}
 
       <div className="overflow-hidden rounded-xl border border-slate-800">
         <table className="w-full text-left text-sm">

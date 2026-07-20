@@ -352,16 +352,32 @@ export function Assets() {
   }
   const { format, displayCurrency, convert } = useCurrency();
 
+  const CATEGORY_ORDER: Record<string, number> = { cash: 0, bank: 1, investment: 2, real_estate: 3, vehicle: 4, other: 5 };
+  const sortAssets = (a: Asset, b: Asset) => {
+    const ca = CATEGORY_ORDER[a.category] ?? 9;
+    const cb = CATEGORY_ORDER[b.category] ?? 9;
+    if (ca !== cb) return ca - cb;
+    if (a.category === "bank" && b.category === "bank") {
+      const subOrder: Record<string, number> = { checking: 0, savings: 1, money_market: 2, cd: 3, credit_card: 4 };
+      return (subOrder[a.subCategory ?? ""] ?? 9) - (subOrder[b.subCategory ?? ""] ?? 9);
+    }
+    if (a.category === "investment" && b.category === "investment") {
+      const subOrder: Record<string, number> = { stock: 0, etf: 1, fund: 2, bond: 3, crypto: 4 };
+      return (subOrder[a.subCategory ?? ""] ?? 9) - (subOrder[b.subCategory ?? ""] ?? 9);
+    }
+    return a.name.localeCompare(b.name);
+  };
+
   const liquidAssets = useMemo(
-    () => (list.data ?? []).filter((a) => a.liquidity === "liquid"),
+    () => (list.data ?? []).filter((a) => a.liquidity === "liquid").sort(sortAssets),
     [list.data]
   );
   const nearLiquidAssets = useMemo(
-    () => (list.data ?? []).filter((a) => a.liquidity === "near_liquid"),
+    () => (list.data ?? []).filter((a) => a.liquidity === "near_liquid").sort(sortAssets),
     [list.data]
   );
   const nonLiquidAssets = useMemo(
-    () => (list.data ?? []).filter((a) => a.liquidity === "illiquid"),
+    () => (list.data ?? []).filter((a) => a.liquidity === "illiquid").sort(sortAssets),
     [list.data]
   );
 

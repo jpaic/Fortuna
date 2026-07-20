@@ -11,6 +11,7 @@ import { useCurrency } from "../context/CurrencyContext";
 import { incomeLabel } from "../lib/incomeLabels";
 import { frequencyLabel } from "../lib/frequencyLabels";
 import { assetDisplayName } from "../lib/assetDisplayName";
+import { IncomeCharts } from "../components/charts/IncomeCharts";
 
 export function Income() {
   const { list, create, update, remove } = useResource<IncomeEntry>("income");
@@ -59,6 +60,10 @@ export function Income() {
           <Plus size={16} /> Add income
         </button>
       </div>
+
+      {list.data && list.data.length > 0 && (
+        <IncomeCharts entries={list.data} />
+      )}
 
       <div className="overflow-hidden rounded-xl border border-slate-800">
         <table className="w-full text-left text-sm">
