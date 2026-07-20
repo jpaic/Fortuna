@@ -208,7 +208,7 @@ analyticsRouter.get(
     for (const e of fExpenses) {
       const converted = c(Number(e.amount), e.currency);
       if (e.frequency === "one_time") {
-        const key = String(e.date).slice(0, 7);
+        const key = new Date(e.date).toISOString().slice(0, 7);
         if (key !== currentMonthKey) continue;
         expenseCatMap.set(e.category, (expenseCatMap.get(e.category) ?? 0) + converted);
       } else {

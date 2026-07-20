@@ -39,11 +39,11 @@ export async function syncCashflowForEntry(
   const currency = (row.currency as string) || "EUR";
   const frequency = (row.frequency as string) || "one_time";
   const category = (row.category as string) || "other";
-  const date = row.date as string;
+  const dateStr = new Date(row.date as string | number | Date).toISOString().slice(0, 10);
   const type = table === "income" ? "income" : "expense";
 
   if (frequency === "one_time") {
-    const monthKey = date.slice(0, 7);
+    const monthKey = dateStr.slice(0, 7);
     await query(
       `INSERT INTO cashflow_history (user_id, month_key, type, category, amount, currency, source_entry_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -53,7 +53,7 @@ export async function syncCashflowForEntry(
     );
   } else {
     const monthlyAmount = normalize(amount, frequency);
-    const startDate = new Date(date);
+    const startDate = new Date(row.date as string | number | Date);
     const now = new Date();
 
     // Insert rows for each month from start date to now
