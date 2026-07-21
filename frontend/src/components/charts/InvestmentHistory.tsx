@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { useCurrency } from "../../context/CurrencyContext";
+import { LoadingSpinner } from "../ui/LoadingSpinner";
 import type { Investment } from "../../types";
 import {
   ResponsiveContainer,
@@ -166,7 +167,7 @@ function SingleInvestmentChart({ inv }: { inv: Investment }) {
   );
   const { data: history, isPending: histPending } = useInvestmentHistory(inv.id, true);
 
-  if (pricePending || histPending) return <p className="text-sm text-slate-500">Loading price data…</p>;
+  if (pricePending || histPending) return <div className="flex items-center gap-2 py-4"><LoadingSpinner size={16} /><span className="text-sm text-slate-500">Loading price data…</span></div>;
   if (!timeseries || timeseries.length === 0) return <p className="text-sm text-slate-500">No price data available.</p>;
 
   const chartData = buildChartDataForInvestment(timeseries, history, inv);
@@ -202,7 +203,7 @@ function AllInvestmentsChart({ holdings, displayCurrency }: { holdings: Investme
   });
 
   const isPending = priceQueries.some((q) => q.isPending) || histQueries.some((q) => q.isPending);
-  if (isPending) return <p className="text-sm text-slate-500">Loading price data…</p>;
+  if (isPending) return <div className="flex items-center gap-2 py-4"><LoadingSpinner size={16} /><span className="text-sm text-slate-500">Loading price data…</span></div>;
 
   const byDate = new Map<string, number>();
 

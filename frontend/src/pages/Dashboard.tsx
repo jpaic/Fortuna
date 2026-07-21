@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import type { DashboardSummary } from "../types";
 import { Card } from "../components/ui/Card";
+import { PageLoader } from "../components/ui/LoadingSpinner";
 import { NetWorthTimeline } from "../components/charts/NetWorthTimeline";
 import { AssetAllocation } from "../components/charts/AssetAllocation";
 import { IncomeVsExpenses } from "../components/charts/IncomeVsExpenses";
@@ -72,7 +73,7 @@ function DashboardContent() {
     });
 
   if (isPending || !data) {
-    return <p className="text-slate-400">Loading dashboard…</p>;
+    return <PageLoader text="Loading dashboard…" />;
   }
 
   return (

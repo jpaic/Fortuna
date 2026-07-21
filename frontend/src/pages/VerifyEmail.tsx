@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { FullScreenLoader } from "../components/ui/LoadingSpinner";
 
 export function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -32,11 +33,7 @@ export function VerifyEmail() {
   }
 
   if (status === "loading") {
-    return (
-      <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-400">
-        Verifying your email…
-      </div>
-    );
+    return <FullScreenLoader text="Verifying your email…" />;
   }
 
   if (status === "success") {

@@ -187,7 +187,7 @@ export function InvestmentForm({
             className={inputClass}
             placeholder="Search ticker or company name…"
           />
-          {searching && <p className="text-xs text-slate-500 animate-pulse">Searching…</p>}
+          {searching && <p className="text-xs text-slate-500 flex items-center gap-1.5"><span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-slate-500 border-t-transparent" /> Searching…</p>}
           {searchResults.length > 0 && (
             <div className="max-h-48 overflow-y-auto divide-y divide-slate-800">
               {searchResults.filter((r) => r.type !== "OPTION" && r.type !== "FUTURE").map((r) => (
@@ -246,11 +246,11 @@ export function InvestmentForm({
             type="number"
             step="any"
             {...register("currentPrice")}
-            className={`${inputClass} ${fetching ? "animate-pulse" : ""}`}
+            className={inputClass}
             readOnly
             tabIndex={-1}
           />
-          {fetching && <p className="mt-1 text-xs text-slate-500">Fetching price…</p>}
+          {fetching && <p className="mt-1 text-xs text-slate-500 flex items-center gap-1.5"><span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-slate-500 border-t-transparent" /> Fetching price…</p>}
         </div>
       </div>
 
@@ -291,8 +291,9 @@ export function InvestmentForm({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-lg bg-emerald-500 py-2 text-sm font-medium text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-500 py-2 text-sm font-medium text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
       >
+        {isSubmitting && <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />}
         {isSubmitting ? "Saving…" : "Save investment"}
       </button>
     </form>

@@ -127,8 +127,9 @@ export function BuyMoreModal({
         <button
           onClick={() => onBuy({ quantity: qty, pricePerUnit: priceNum, assetId: assetId || undefined })}
           disabled={!isValid || isPending}
-          className="flex-1 rounded-lg bg-emerald-500 py-2 text-sm font-medium text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+          className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-500 py-2 text-sm font-medium text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
         >
+          {isPending && <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />}
           {isPending ? "Buying…" : "Buy"}
         </button>
       </div>
