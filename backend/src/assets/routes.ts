@@ -37,6 +37,7 @@ const columns = {
   bankName: "bank_name",
   subCategory: "sub_category",
   liquidity: "liquidity",
+  isFavorite: "is_favorite",
   purchaseValue: "purchase_value",
   currentValue: "current_value",
   currency: "currency",
@@ -132,5 +133,24 @@ assetsRouter.post(
     await upsertDailySnapshot(userId);
 
     res.json({ sold: asset.name, sellValue, targetAssetId });
+  })
+);
+
+assetsRouter.post(
+  "/:id/favorite",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const userId = req.userId!;
+
+    const asset = await queryOne<{ id: string }>(
+      `SELECT id FROM assets WHERE id = $1 AND user_id = $2`,
+      [req.params.id, userId]
+    );
+    if (!asset) throw new ApiError(404, "Asset not found");
+
+    await query(`UPDATE assets SET is_favorite = FALSE WHERE user_id = $1`, [userId]);
+    await query(`UPDATE assets SET is_favorite = TRUE WHERE id = $1 AND user_id = $2`, [req.params.id, userId]);
+
+    res.json({ id: req.params.id, isFavorite: true });
   })
 );

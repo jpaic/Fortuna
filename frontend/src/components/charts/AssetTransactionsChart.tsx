@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { assetDisplayName } from "../../lib/assetDisplayName";
@@ -66,8 +66,16 @@ function WaterfallTooltip({ active, payload, currency }: { active?: boolean; pay
 }
 
 export function AssetTransactionsChart({ assets, format, convert, displayCurrency }: { assets: Asset[]; format: (v: number, c: string) => string; convert: (amount: number, from: string) => number; displayCurrency: string }) {
-  const [selectedId, setSelectedId] = useState<string>(assets[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState<string>(
+    () => assets.find((a) => a.isFavorite)?.id ?? assets[0]?.id ?? ""
+  );
   const selected = assets.find((a) => a.id === selectedId);
+
+  useEffect(() => {
+    if (assets.length > 0 && !assets.find((a) => a.id === selectedId)) {
+      setSelectedId(assets.find((a) => a.isFavorite)?.id ?? assets[0]?.id ?? "");
+    }
+  }, [assets, selectedId]);
 
   const { data: history } = useQuery<HistoryPoint[]>({
     queryKey: ["asset-history", selectedId],
@@ -80,18 +88,21 @@ export function AssetTransactionsChart({ assets, format, convert, displayCurrenc
     queryKey: ["expenses"],
     queryFn: async () => (await api.get("/expenses")).data,
     enabled: !!selectedId,
+    staleTime: 5 * 60_000,
   });
 
   const { data: incomes } = useQuery<Income[]>({
     queryKey: ["income"],
     queryFn: async () => (await api.get("/income")).data,
     enabled: !!selectedId,
+    staleTime: 5 * 60_000,
   });
 
   const { data: transfers } = useQuery<Transfer[]>({
     queryKey: ["assets", selectedId, "transfers"],
     queryFn: async () => (await api.get("/assets/transfer", { params: { assetId: selectedId } })).data,
     enabled: !!selectedId,
+    staleTime: 5 * 60_000,
   });
 
   const { chartData, totalIn, totalOut } = useMemo(() => {
@@ -218,7 +229,7 @@ export function AssetTransactionsChart({ assets, format, convert, displayCurrenc
   const hasData = chartData.length > 2;
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5" style={{ minHeight: 330 }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-medium text-slate-400">30d net flow</p>
         <select
@@ -234,7 +245,8 @@ export function AssetTransactionsChart({ assets, format, convert, displayCurrenc
         </select>
       </div>
 
-      {selected && hasData && (
+      <div className="relative" style={{ height: 280 }}>
+        {selected && hasData && (
         <>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={chartData} margin={{ top: 30, right: 10, left: 10, bottom: 0 }}>
@@ -363,8 +375,11 @@ export function AssetTransactionsChart({ assets, format, convert, displayCurrenc
       )}
 
       {selected && !hasData && (
-        <p className="text-xs text-slate-500 text-center mt-2">No balance history or transactions in the past 30 days</p>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <p className="text-xs text-slate-500 text-center">No balance history or transactions in the past 30 days</p>
+        </div>
       )}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, ArrowLeftRight, DollarSign } from "lucide-react";
+import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, ArrowLeftRight, DollarSign, Star } from "lucide-react";
 import { useResource } from "../hooks/useResource";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { assetDisplayName } from "../lib/assetDisplayName";
 import type { Asset, Expense, Income } from "../types";
@@ -40,6 +40,7 @@ function AssetRow({
   onTransfer,
   onNearLiquid,
   onSell,
+  onFavorite,
   format,
 }: {
   asset: Asset;
@@ -48,6 +49,7 @@ function AssetRow({
   onTransfer: (a: Asset, closeAccount?: boolean) => void;
   onNearLiquid: (a: Asset) => void;
   onSell: (a: Asset) => void;
+  onFavorite: (id: string) => void;
   format: (value: number, currency: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -170,7 +172,16 @@ function AssetRow({
         <td className="px-4 py-3">
           {format(asset.currentValue, asset.currency)}
         </td>
-        <td className="px-4 py-3 w-24 text-right whitespace-nowrap">
+        <td className="px-4 py-3 w-28 text-right whitespace-nowrap">
+          {canExpand && (
+            <button
+              onClick={() => onFavorite(asset.id)}
+              className={`mr-2 transition-colors ${asset.isFavorite ? "text-amber-400" : "text-slate-500 hover:text-amber-400"}`}
+              title={asset.isFavorite ? "Default for waterfall" : "Set as default for waterfall"}
+            >
+              <Star size={16} fill={asset.isFavorite ? "currentColor" : "none"} />
+            </button>
+          )}
           {canExpand && (
             <button onClick={() => onTransfer(asset, false)} className="text-slate-500 hover:text-blue-400 mr-2" title="Transfer funds">
               <ArrowLeftRight size={16} />
@@ -285,17 +296,17 @@ function LiquidityChart({ liquid, nearLiquid, nonLiquid, displayCurrency, format
   if (data.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col h-full">
       <p className="text-sm font-medium text-slate-400 mb-3">Liquidity breakdown</p>
-      <div className="flex items-center gap-6">
-        <ResponsiveContainer width={160} height={160}>
+      <div className="flex items-center justify-center gap-6 flex-1">
+        <ResponsiveContainer width={200} height={200}>
           <PieChart>
             <Pie
               data={data}
               dataKey="value"
               nameKey="name"
-              innerRadius={40}
-              outerRadius={65}
+              innerRadius={50}
+              outerRadius={80}
               paddingAngle={3}
               stroke="none"
             >
@@ -351,6 +362,19 @@ export function Assets() {
     setCloseAccount(isClose);
   }
   const { format, displayCurrency, convert } = useCurrency();
+  const queryClient = useQueryClient();
+
+  async function handleFavorite(id: string) {
+    const prev = queryClient.getQueryData<Asset[]>(["assets"]);
+    queryClient.setQueryData<Asset[]>(["assets"], (old) =>
+      old?.map((a) => ({ ...a, isFavorite: a.id === id }))
+    );
+    try {
+      await api.post(`/assets/${id}/favorite`);
+    } catch {
+      queryClient.setQueryData(["assets"], prev);
+    }
+  }
 
   const CATEGORY_ORDER: Record<string, number> = { cash: 0, bank: 1, investment: 2, real_estate: 3, vehicle: 4, other: 5 };
   const sortAssets = (a: Asset, b: Asset) => {
@@ -458,6 +482,7 @@ export function Assets() {
                   onTransfer={openTransfer}
                   onNearLiquid={setNearLiquidAsset}
                   onSell={setSellingAsset}
+                  onFavorite={handleFavorite}
                   format={format}
                 />
               ))}
@@ -499,6 +524,7 @@ export function Assets() {
                   onTransfer={openTransfer}
                   onNearLiquid={setNearLiquidAsset}
                   onSell={setSellingAsset}
+                  onFavorite={handleFavorite}
                   format={format}
                 />
               ))}
@@ -540,6 +566,7 @@ export function Assets() {
                   onTransfer={openTransfer}
                   onNearLiquid={setNearLiquidAsset}
                   onSell={setSellingAsset}
+                  onFavorite={handleFavorite}
                   format={format}
                 />
               ))}

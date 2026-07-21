@@ -123,7 +123,7 @@ function DashboardContent() {
             <p className="text-sm text-slate-500">No income or expense data yet.</p>
           )}
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col">
           <p className="mb-4 text-sm font-medium text-slate-300">Expense breakdown</p>
           {data.expenseBreakdown.length > 0 ? (
             <ExpenseBreakdown data={data.expenseBreakdown} currency={displayCurrency} />

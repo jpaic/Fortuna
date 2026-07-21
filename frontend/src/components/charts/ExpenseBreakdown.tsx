@@ -22,7 +22,7 @@ export function ExpenseBreakdown({ data, currency = "EUR" }: Props) {
   const sorted = sortedDonut(smoothed);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col items-center justify-center flex-1">
       <ResponsiveContainer width="100%" height={240}>
         <PieChart>
           <Pie

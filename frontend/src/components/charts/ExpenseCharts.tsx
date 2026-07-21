@@ -184,7 +184,7 @@ export function ExpenseCharts({ entries }: { entries: Expense[] }) {
         </div>
 
         {/* Merchant/source donut */}
-        <div className="rounded-xl border border-slate-800 p-4">
+        <div className="rounded-xl border border-slate-800 p-4 flex flex-col" style={{ minHeight: 320 }}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-slate-400">
               {selectedCategory ? `Merchants — ${expenseLabel(selectedCategory)}` : "By Merchant"}
@@ -204,9 +204,13 @@ export function ExpenseCharts({ entries }: { entries: Expense[] }) {
             </div>
           </div>
           {!selectedCategory ? (
-            <p className="text-slate-500 text-sm text-center py-8">Click a category slice to drill down.</p>
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-slate-500 text-sm">Click a category slice to drill down.</p>
+            </div>
           ) : merchantData.length === 0 ? (
-            <p className="text-slate-500 text-sm text-center py-8">No merchant data for this category.</p>
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-slate-500 text-sm">No merchant data for this category.</p>
+            </div>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={220}>

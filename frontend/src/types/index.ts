@@ -17,6 +17,7 @@ export interface Asset {
   bankName?: string;
   subCategory?: string;
   liquidity: "liquid" | "near_liquid" | "illiquid";
+  isFavorite: boolean;
   purchaseValue: number;
   currentValue: number;
   currency: string;
