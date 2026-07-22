@@ -154,12 +154,14 @@ export function AssetTransactionsChart({ assets, format, convert, displayCurrenc
     // Find starting balance (oldest history point in window, or interpolate)
     const sortedDays = [...historyMap.keys()].sort();
     let startBalance = selected.currentValue;
+    let startDate = thirtyDaysAgo.toISOString().slice(0, 10);
 
     // Find the earliest history point in the 30-day window
     const windowStart = thirtyDaysAgo.toISOString().slice(0, 10);
     const earliest = sortedDays.find((d) => d >= windowStart) ?? sortedDays[0];
     if (earliest && historyMap.has(earliest)) {
       startBalance = historyMap.get(earliest)!;
+      startDate = earliest;
     }
 
     // Build waterfall: start → transactions (sorted by date) → end
@@ -169,7 +171,7 @@ export function AssetTransactionsChart({ assets, format, convert, displayCurrenc
     // Start bar
     waterfall.push({
       label: "Start",
-      fullDate: new Date(running === startBalance ? thirtyDaysAgo : now).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      fullDate: new Date(startDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }),
       base: 0,
       change: running,
       running,
