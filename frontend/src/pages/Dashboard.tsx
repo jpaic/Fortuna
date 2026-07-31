@@ -136,20 +136,20 @@ function DashboardContent() {
           ) : (
             <p className="text-sm text-slate-500">No income or expense data yet.</p>
           )}
-          {selectedMonth !== currentMonth && (
-            <p className="mt-3 text-xs text-slate-500">
-              Expense breakdown shown for{" "}
-              <span className="text-slate-300">{new Date(selectedMonth + "-01").toLocaleDateString(undefined, { month: "long", year: "numeric" })}</span>{" "}
-              — <button onClick={() => setSelectedMonth(currentMonth)} className="text-emerald-400 hover:underline">reset to current month</button>
-            </p>
-          )}
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-medium text-slate-300">Expense breakdown</p>
-            <span className="text-xs font-medium text-slate-400">
-              {new Date(selectedMonth + "-01").toLocaleDateString(undefined, { month: "short", year: "numeric" })}
-            </span>
+            {selectedMonth !== currentMonth ? (
+              <button onClick={() => setSelectedMonth(currentMonth)} className="flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-xs font-medium text-slate-300 transition hover:border-slate-600 hover:text-white">
+                <span className="text-slate-400">{new Date(selectedMonth + "-01").toLocaleDateString(undefined, { month: "short", year: "numeric" })}</span>
+                <span className="text-emerald-400">· Reset</span>
+              </button>
+            ) : (
+              <span className="text-xs font-medium text-slate-400">
+                {new Date(selectedMonth + "-01").toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+              </span>
+            )}
           </div>
           {data.expenseBreakdown.length > 0 ? (
             <ExpenseBreakdown data={data.expenseBreakdown} currency={displayCurrency} />
