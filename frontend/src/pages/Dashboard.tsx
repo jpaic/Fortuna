@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import type { DashboardSummary } from "../types";
@@ -38,7 +38,15 @@ function DashboardContent() {
   const { displayCurrency } = useCurrency();
   const filters = useDashboardFilters();
   const currentYear = new Date().getFullYear();
+  const currentMonth = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
+
+  useEffect(() => {
+    if (!selectedMonth.startsWith(String(selectedYear))) {
+      setSelectedMonth(`${selectedYear}-${String(new Date().getMonth() + 1).padStart(2, "0")}`);
+    }
+  }, [selectedYear, selectedMonth]);
 
   const excludeAssets = filters.excludeAssets.length > 0 ? filters.excludeAssets.join(",") : undefined;
   const excludeInvTypes = filters.excludeInvTypes.length > 0 ? filters.excludeInvTypes.join(",") : undefined;
@@ -47,7 +55,7 @@ function DashboardContent() {
 
   const { data, isPending } = useQuery({
     queryKey: [
-      "dashboard-summary", displayCurrency, selectedYear,
+      "dashboard-summary", displayCurrency, selectedYear, selectedMonth,
       excludeAssets, excludeInvTypes, excludeIncomeCats, excludeExpenseCats,
     ],
     queryFn: async () =>
@@ -55,6 +63,7 @@ function DashboardContent() {
         params: {
           currency: displayCurrency,
           year: selectedYear,
+          month: selectedMonth,
           ...(excludeAssets && { excludeAssets }),
           ...(excludeInvTypes && { excludeInvTypes }),
           ...(excludeIncomeCats && { excludeIncomeCats }),
@@ -119,17 +128,35 @@ function DashboardContent() {
               <YearSelect value={selectedYear} onChange={setSelectedYear} years={data.availableYears} />
           </div>
           {data.monthlyIncomeVsExpenses.length > 0 ? (
-            <IncomeVsExpenses data={data.monthlyIncomeVsExpenses} currency={displayCurrency} />
+            <IncomeVsExpenses
+              data={data.monthlyIncomeVsExpenses}
+              currency={displayCurrency}
+              onMonthClick={setSelectedMonth}
+            />
           ) : (
             <p className="text-sm text-slate-500">No income or expense data yet.</p>
           )}
+          {selectedMonth !== currentMonth && (
+            <p className="mt-3 text-xs text-slate-500">
+              Expense breakdown shown for{" "}
+              <span className="text-slate-300">{new Date(selectedMonth + "-01").toLocaleDateString(undefined, { month: "long", year: "numeric" })}</span>{" "}
+              — <button onClick={() => setSelectedMonth(currentMonth)} className="text-emerald-400 hover:underline">reset to current month</button>
+            </p>
+          )}
         </div>
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col">
-          <p className="mb-4 text-sm font-medium text-slate-300">Expense breakdown</p>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-medium text-slate-300">Expense breakdown</p>
+            <span className="text-xs font-medium text-slate-400">
+              {new Date(selectedMonth + "-01").toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+            </span>
+          </div>
           {data.expenseBreakdown.length > 0 ? (
             <ExpenseBreakdown data={data.expenseBreakdown} currency={displayCurrency} />
           ) : (
-            <p className="text-sm text-slate-500">No expenses recorded yet.</p>
+            <div className="flex flex-1 items-center justify-center">
+              <p className="text-sm text-slate-500">No expenses recorded for this month.</p>
+            </div>
           )}
         </div>
       </div>

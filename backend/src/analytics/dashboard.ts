@@ -28,6 +28,12 @@ analyticsRouter.get(
     const currentYear = new Date().getFullYear();
     const selectedYear = Number(req.query.year) || currentYear;
 
+    // Month filter for expense breakdown (default: current month)
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const monthParam = String(req.query.month ?? "").trim();
+    const breakdownMonth = /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : currentMonthKey;
+
     // Parse exclude filters
     const excludeAssets = parseList(req.query.excludeAssets);
     const excludeInvTypes = parseList(req.query.excludeInvTypes);
@@ -178,13 +184,12 @@ analyticsRouter.get(
 
     const monthlyIncomeVsExpenses = months.map((m) => ({
       month: m.label,
+      monthKey: m.key,
       income: round2(monthIncomeMap.get(m.key) ?? 0),
       expenses: round2(monthExpenseMap.get(m.key) ?? 0),
     }));
 
     // KPIs: current month totals from cashflow_history
-    const now = new Date();
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const monthlyIncome = monthIncomeMap.get(currentMonthKey) ?? 0;
     const monthlyExpenses = monthExpenseMap.get(currentMonthKey) ?? 0;
     const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : 0;
@@ -209,7 +214,7 @@ analyticsRouter.get(
       const converted = c(Number(e.amount), e.currency);
       if (e.frequency === "one_time") {
         const key = new Date(e.date).toISOString().slice(0, 7);
-        if (key !== currentMonthKey) continue;
+        if (key !== breakdownMonth) continue;
         expenseCatMap.set(e.category, (expenseCatMap.get(e.category) ?? 0) + converted);
       } else {
         const monthly = normalize(converted, e.frequency);

@@ -133,7 +133,7 @@ export interface DashboardSummary {
   savingsRate: number;
   assetAllocation: { category: string; value: number; percent: number }[];
   netWorthHistory: NetWorthPoint[];
-  monthlyIncomeVsExpenses: { month: string; income: number; expenses: number }[];
+  monthlyIncomeVsExpenses: { month: string; monthKey: string; income: number; expenses: number }[];
   expenseBreakdown: { category: string; value: number; percent: number }[];
   investmentBreakdown: { category: string; value: number; percent: number }[];
   netWorthComposition: { date: string; assets: number; investments: number }[];

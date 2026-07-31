@@ -10,8 +10,9 @@ import {
 } from "recharts";
 
 interface Props {
-  data: { month: string; income: number; expenses: number }[];
+  data: { month: string; monthKey: string; income: number; expenses: number }[];
   currency: string;
+  onMonthClick?: (monthKey: string) => void;
 }
 
 const sym = (c: string) =>
@@ -42,7 +43,7 @@ function buildTicks(max: number, step: number): number[] {
   return ticks;
 }
 
-export function IncomeVsExpenses({ data, currency }: Props) {
+export function IncomeVsExpenses({ data, currency, onMonthClick }: Props) {
   const s = sym(currency);
   const maxVal = Math.max(...data.map((d) => Math.max(d.income, d.expenses)), 0);
   const step = niceStep(maxVal);
@@ -72,8 +73,22 @@ export function IncomeVsExpenses({ data, currency }: Props) {
           wrapperStyle={{ paddingBottom: 8 }}
           formatter={(value) => <span className="text-slate-300">{value === "income" ? "Income" : "Expenses"}</span>}
         />
-        <Bar dataKey="income" fill="#34d399" radius={[2, 2, 0, 0]} maxBarSize={24} />
-        <Bar dataKey="expenses" fill="#f87171" radius={[2, 2, 0, 0]} maxBarSize={24} />
+        <Bar
+          dataKey="income"
+          fill="#34d399"
+          radius={[2, 2, 0, 0]}
+          maxBarSize={24}
+          className={onMonthClick ? "cursor-pointer" : ""}
+          onClick={onMonthClick ? (d: unknown) => onMonthClick((d as { monthKey: string }).monthKey) : undefined}
+        />
+        <Bar
+          dataKey="expenses"
+          fill="#f87171"
+          radius={[2, 2, 0, 0]}
+          maxBarSize={24}
+          className={onMonthClick ? "cursor-pointer" : ""}
+          onClick={onMonthClick ? (d: unknown) => onMonthClick((d as { monthKey: string }).monthKey) : undefined}
+        />
       </BarChart>
     </ResponsiveContainer>
   );
