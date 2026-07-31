@@ -90,6 +90,16 @@ const CATEGORY_GROUPS: { label: string; options: { value: string; label: string 
     options: [{ value: "travel", label: "Travel" }],
   },
   {
+    label: "Leisure",
+    options: [
+      { value: "cinema", label: "Cinema" },
+      { value: "club", label: "Clubs / Nightlife" },
+      { value: "concerts", label: "Concerts / Events" },
+      { value: "hobbies", label: "Hobbies" },
+      { value: "sports_events", label: "Sports events" },
+    ],
+  },
+  {
     label: "Gifts & Donations",
     options: [
       { value: "gifts", label: "Gifts" },

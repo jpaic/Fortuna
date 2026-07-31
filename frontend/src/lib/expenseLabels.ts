@@ -44,6 +44,12 @@ const EXPENSE_LABELS: Record<string, string> = {
   pets: "Pets",
   // Travel
   travel: "Travel",
+  // Leisure
+  cinema: "Cinema",
+  club: "Clubs / Nightlife",
+  concerts: "Concerts / Events",
+  hobbies: "Hobbies",
+  sports_events: "Sports Events",
   // Gifts
   gifts: "Gifts",
   donations: "Donations",

@@ -17,6 +17,7 @@ const category = z.enum([
   "kids", "eldercare",
   "pets",
   "travel",
+  "cinema", "club", "concerts", "hobbies", "sports_events",
   "gifts", "donations",
   "fees", "taxes", "insurance", "interest",
   "stocks", "crypto_inv", "etf_inv", "bonds",
