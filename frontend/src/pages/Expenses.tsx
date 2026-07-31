@@ -117,6 +117,7 @@ export function Expenses() {
           <ExpenseForm
             onSubmit={handleSubmit}
             isSubmitting={create.isPending || update.isPending}
+            isEditing={!!editing}
             displayCurrency={displayCurrency}
             defaultValues={editing ? {
               category: editing.category,

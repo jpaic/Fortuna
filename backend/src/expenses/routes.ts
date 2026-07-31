@@ -48,11 +48,11 @@ const columns = {
   assetId: "asset_id",
 };
 
-async function handleAssetDeduction(userId: string, input: Record<string, unknown>) {
-  const assetId = input.assetId as string | undefined;
-  const frequency = input.frequency as string | undefined;
-  const amount = Number(input.amount ?? 0);
-  const expenseCurrency = (input.currency as string) ?? "EUR";
+async function adjustAssetFromRow(userId: string, row: Record<string, unknown>, reverse: boolean) {
+  const assetId = row.asset_id as string | undefined;
+  const frequency = row.frequency as string | undefined;
+  const amount = Number(row.amount ?? 0);
+  const expenseCurrency = (row.currency as string) ?? "EUR";
 
   if (!assetId || frequency !== "one_time" || amount <= 0) return;
 
@@ -66,7 +66,9 @@ async function handleAssetDeduction(userId: string, input: Record<string, unknow
   const rates = await getRates(assetCurrency);
   const converted = convert(amount, expenseCurrency, assetCurrency, rates);
 
-  const newVal = Math.max(0, Number(asset.current_value) - converted);
+  const newVal = reverse
+    ? Number(asset.current_value) + converted
+    : Math.max(0, Number(asset.current_value) - converted);
 
   await query(
     `UPDATE assets SET current_value = $1 WHERE id = $2`,
@@ -82,8 +84,17 @@ export const expensesRouter = createCrudRouter({
   columns,
   createSchema,
   updateSchema,
-  postMutation: async (userId, row, input) => {
-    try { await handleAssetDeduction(userId, input ?? {}); } catch (e) { console.error("handleAssetDeduction failed:", e); }
+  postMutation: async (userId, row, input, op, prevRow) => {
+    try {
+      if (op === "create") {
+        await adjustAssetFromRow(userId, row ?? {}, false);
+      } else if (op === "update") {
+        await adjustAssetFromRow(userId, prevRow ?? {}, true);
+        await adjustAssetFromRow(userId, row ?? {}, false);
+      } else if (op === "delete") {
+        await adjustAssetFromRow(userId, row ?? {}, true);
+      }
+    } catch (e) { console.error("adjustAssetFromRow failed:", e); }
     try { await syncCashflowForEntry(userId, "expenses", row); } catch (e) { console.error("syncCashflowForEntry failed:", e); }
   },
 });

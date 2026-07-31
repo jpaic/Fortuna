@@ -49,7 +49,13 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
   computedColumns?: ColumnMap;
   createSchema: z.ZodType<TCreate>;
   updateSchema: z.ZodType<Partial<TCreate>>;
-  postMutation?: (userId: string, row?: Record<string, unknown>, input?: Record<string, unknown>) => Promise<void>;
+  postMutation?: (
+    userId: string,
+    row?: Record<string, unknown>,
+    input?: Record<string, unknown>,
+    op?: "create" | "update" | "delete",
+    prevRow?: Record<string, unknown>
+  ) => Promise<void>;
 }) {
   const router = Router();
   router.use(requireAuth);
@@ -94,7 +100,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
          RETURNING *`,
         [req.userId, ...values]
       );
-      if (config.postMutation) await config.postMutation(req.userId!, (row as Record<string, unknown>) ?? undefined, input as Record<string, unknown>);
+      if (config.postMutation) await config.postMutation(req.userId!, (row as Record<string, unknown>) ?? undefined, input as Record<string, unknown>, "create");
       res.status(201).json(castRow(row));
     })
   );
@@ -105,7 +111,11 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
       const input = config.updateSchema.parse(req.body);
       const entries = Object.entries(input).filter(([key]) => key in config.columns);
 
-      if (entries.length === 0) throw new ApiError(400, "No valid fields to update");
+      const prevRow = await queryOne(
+        `SELECT * FROM ${config.table} WHERE id = $1 AND user_id = $2`,
+        [req.params.id, req.userId]
+      );
+      if (!prevRow) throw new ApiError(404, "Not found");
 
       const setClauses = entries.map(([key], i) => `${config.columns[key]} = $${i + 3}`);
       const values = entries.map(([, value]) => value);
@@ -118,7 +128,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
         [req.params.id, req.userId, ...values]
       );
       if (!row) throw new ApiError(404, "Not found");
-      if (config.postMutation) await config.postMutation(req.userId!, (row as Record<string, unknown>) ?? undefined, input as Record<string, unknown>);
+      if (config.postMutation) await config.postMutation(req.userId!, (row as Record<string, unknown>) ?? undefined, input as Record<string, unknown>, "update", prevRow as Record<string, unknown>);
       res.json(castRow(row));
     })
   );
@@ -131,7 +141,7 @@ export function createCrudRouter<TCreate extends Record<string, unknown>>(config
         [req.params.id, req.userId]
       );
       if (!row) throw new ApiError(404, "Not found");
-      if (config.postMutation) await config.postMutation(req.userId!, row as Record<string, unknown>);
+      if (config.postMutation) await config.postMutation(req.userId!, row as Record<string, unknown>, undefined, "delete", row as Record<string, unknown>);
       res.status(204).send();
     })
   );

@@ -117,6 +117,7 @@ export function Income() {
           <IncomeForm
             onSubmit={handleSubmit}
             isSubmitting={create.isPending || update.isPending}
+            isEditing={!!editing}
             displayCurrency={displayCurrency}
             defaultValues={editing ? {
               source: editing.source,
