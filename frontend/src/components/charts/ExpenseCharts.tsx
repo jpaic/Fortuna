@@ -22,7 +22,12 @@ function normalizeToMonthly(amount: number, freq: string): number {
 }
 
 function currentMonthKey() {
-  return new Date().toISOString().slice(0, 7);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthKey(date: string) {
+  return String(date).slice(0, 7);
 }
 
 function monthLabel(key: string) {
@@ -48,10 +53,7 @@ export function ExpenseCharts({ entries }: { entries: Expense[] }) {
   const mk = currentMonthKey();
 
   const monthly = useMemo(
-    () => entries.filter((e) => {
-      const dk = new Date(e.date).toISOString().slice(0, 7);
-      return dk === mk;
-    }),
+    () => entries.filter((e) => monthKey(e.date) === mk),
     [entries, mk]
   );
 
@@ -59,8 +61,7 @@ export function ExpenseCharts({ entries }: { entries: Expense[] }) {
     const out: Expense[] = [];
     for (const e of entries) {
       if (e.frequency === "one_time") continue;
-      const dk = new Date(e.date).toISOString().slice(0, 7);
-      if (dk <= mk) out.push(e);
+      if (monthKey(e.date) <= mk) out.push(e);
     }
     return out;
   }, [entries, mk]);
@@ -105,7 +106,7 @@ export function ExpenseCharts({ entries }: { entries: Expense[] }) {
   const trendData = useMemo(() => {
     const map = new Map<string, number>();
     for (const e of entries) {
-      const dk = new Date(e.date).toISOString().slice(0, 7);
+      const dk = monthKey(e.date);
       const monthlyAmt = normalizeToMonthly(convert(e.amount, e.currency), e.frequency ?? "one_time");
       map.set(dk, (map.get(dk) ?? 0) + monthlyAmt);
     }
