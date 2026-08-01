@@ -82,7 +82,7 @@ export function Expenses() {
       <MonthPicker value={selectedMonth} onChange={setSelectedMonth} years={years} />
 
       {list.data && list.data.length > 0 && (
-        <ExpenseCharts entries={list.data} monthKey={selectedMonth} />
+        <ExpenseCharts entries={list.data} monthKey={selectedMonth} onMonthClick={setSelectedMonth} />
       )}
 
       <div className="overflow-hidden rounded-xl border border-slate-800">

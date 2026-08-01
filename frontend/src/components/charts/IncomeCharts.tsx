@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, matchByDataKey,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import type { Income } from "../../types";
 import { useCurrency } from "../../context/CurrencyContext";
@@ -9,25 +8,10 @@ import { incomeLabel } from "../../lib/incomeLabels";
 import { colorForExpense } from "../../lib/chartColors";
 import { ChartLegend } from "./ChartLegend";
 import { sortedDonut, tooltipStyle, useSmoothDonutData, DONUT_TRANSITION_MS } from "./pieUtils";
-
-function normalizeToMonthly(amount: number, freq: string): number {
-  switch (freq) {
-    case "weekly":      return amount * 4.33;
-    case "biweekly":    return amount * 2.167;
-    case "quarterly":   return amount / 3;
-    case "semi_annual": return amount / 6;
-    case "yearly":      return amount / 12;
-    default:            return amount;
-  }
-}
+import { MonthlyComparisonChart } from "./MonthlyComparisonChart";
 
 function monthKey(date: string) {
   return String(date).slice(0, 7);
-}
-
-function monthLabel(key: string) {
-  const d = new Date(key + "-01");
-  return d.toLocaleString(undefined, { month: "short" });
 }
 
 interface Slice {
@@ -36,7 +20,15 @@ interface Slice {
   percent: number;
 }
 
-export function IncomeCharts({ entries, monthKey: mk }: { entries: Income[]; monthKey: string }) {
+export function IncomeCharts({
+  entries,
+  monthKey: mk,
+  onMonthClick,
+}: {
+  entries: Income[];
+  monthKey: string;
+  onMonthClick?: (monthKey: string) => void;
+}) {
   const { format, displayCurrency, convert } = useCurrency();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -91,25 +83,11 @@ export function IncomeCharts({ entries, monthKey: mk }: { entries: Income[]; mon
     [sourceData]
   );
 
-  const trendData = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const e of entries) {
-      const dk = monthKey(e.date);
-      const monthlyAmt = normalizeToMonthly(convert(e.amount, e.currency), e.frequency ?? "one_time");
-      map.set(dk, (map.get(dk) ?? 0) + monthlyAmt);
-    }
-    const sorted = [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-    return sorted.map(([key, value]) => ({ month: monthLabel(key), value: Math.round(value * 100) / 100 }));
-  }, [entries, convert]);
-
   const smoothCat = useSmoothDonutData(categoryData);
   const sortedCat = sortedDonut(smoothCat);
 
   const smoothSrc = useSmoothDonutData(sourceData);
   const sortedSrc = sortedDonut(smoothSrc);
-
-  const symbol = new Intl.NumberFormat(undefined, { style: "currency", currency: displayCurrency, minimumFractionDigits: 0, maximumFractionDigits: 0 })
-    .formatToParts(0).find((p) => p.type === "currency")?.value ?? displayCurrency;
 
   return (
     <div className="space-y-6">
@@ -243,27 +221,13 @@ export function IncomeCharts({ entries, monthKey: mk }: { entries: Income[]; mon
         </div>
       </div>
 
-      {/* Monthly trend */}
-      {trendData.length > 1 && (
-        <div className="rounded-xl border border-slate-800 p-4">
-          <h3 className="text-sm font-medium text-slate-400 mb-3">Monthly Income Trend</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid stroke="#1e293b" vertical={false} />
-              <XAxis dataKey="month" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => {
-                if (Math.abs(v) >= 1000) return `${symbol}${(v / 1000).toFixed(0)}k`;
-                return `${symbol}${v.toFixed(0)}`;
-              }} domain={[0, "auto"]} />
-              <Tooltip
-                contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-                formatter={(value) => [format(Number(value), displayCurrency), "Income"]}
-              />
-              <Bar dataKey="value" fill="#34d399" radius={[4, 4, 0, 0]} maxBarSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      <MonthlyComparisonChart
+        entries={entries}
+        selectedMonth={mk}
+        color="#34d399"
+        label="Income"
+        onMonthClick={onMonthClick}
+      />
     </div>
   );
 }

@@ -82,7 +82,7 @@ export function Income() {
       <MonthPicker value={selectedMonth} onChange={setSelectedMonth} years={years} />
 
       {list.data && list.data.length > 0 && (
-        <IncomeCharts entries={list.data} monthKey={selectedMonth} />
+        <IncomeCharts entries={list.data} monthKey={selectedMonth} onMonthClick={setSelectedMonth} />
       )}
 
       <div className="overflow-hidden rounded-xl border border-slate-800">
