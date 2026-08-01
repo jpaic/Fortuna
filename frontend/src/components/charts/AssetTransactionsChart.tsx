@@ -117,12 +117,27 @@ export function AssetTransactionsChart({ assets, format, convert, displayCurrenc
       historyMap.set(h.date.slice(0, 10), h.value);
     }
 
+    // Find the starting balance: the oldest history snapshot in the 30-day
+    // window. History rows are end-of-day balances, so only transactions dated
+    // AFTER startDate are added to the running balance - anything on or before
+    // it is already baked into the snapshot.
+    const sortedDays = [...historyMap.keys()].sort();
+    const windowStart = thirtyDaysAgo.toISOString().slice(0, 10);
+    const earliest = sortedDays.find((d) => d >= windowStart) ?? sortedDays[0];
+    let startBalance = selected.currentValue;
+    let startDate = windowStart;
+    if (earliest && historyMap.has(earliest)) {
+      startBalance = historyMap.get(earliest)!;
+      startDate = earliest;
+    }
+
     // Collect all transactions in the window, grouped by day
     const dayEvents = new Map<string, { inflow: number; outflow: number }>();
     let tIn = 0;
     let tOut = 0;
 
     function addEvent(day: string, amount: number, dir: "in" | "out") {
+      if (day <= startDate) return;
       const existing = dayEvents.get(day) ?? { inflow: 0, outflow: 0 };
       if (dir === "in") { existing.inflow += amount; tIn += amount; }
       else { existing.outflow += amount; tOut += amount; }
@@ -149,19 +164,6 @@ export function AssetTransactionsChart({ assets, format, convert, displayCurrenc
         const amt = convert(t.amount, t.currency);
         addEvent(day, amt, t.direction);
       }
-    }
-
-    // Find starting balance (oldest history point in window, or interpolate)
-    const sortedDays = [...historyMap.keys()].sort();
-    let startBalance = selected.currentValue;
-    let startDate = thirtyDaysAgo.toISOString().slice(0, 10);
-
-    // Find the earliest history point in the 30-day window
-    const windowStart = thirtyDaysAgo.toISOString().slice(0, 10);
-    const earliest = sortedDays.find((d) => d >= windowStart) ?? sortedDays[0];
-    if (earliest && historyMap.has(earliest)) {
-      startBalance = historyMap.get(earliest)!;
-      startDate = earliest;
     }
 
     // Build waterfall: start → transactions (sorted by date) → end
