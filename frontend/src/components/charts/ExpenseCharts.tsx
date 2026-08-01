@@ -21,11 +21,6 @@ function normalizeToMonthly(amount: number, freq: string): number {
   }
 }
 
-function currentMonthKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
 function monthKey(date: string) {
   return String(date).slice(0, 7);
 }
@@ -47,10 +42,9 @@ interface MerchantSlice {
   percent: number;
 }
 
-export function ExpenseCharts({ entries }: { entries: Expense[] }) {
+export function ExpenseCharts({ entries, monthKey: mk }: { entries: Expense[]; monthKey: string }) {
   const { format, displayCurrency, convert } = useCurrency();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const mk = currentMonthKey();
 
   const monthly = useMemo(
     () => entries.filter((e) => monthKey(e.date) === mk),
@@ -130,7 +124,7 @@ export function ExpenseCharts({ entries }: { entries: Expense[] }) {
         {/* Category donut */}
         <div className="rounded-xl border border-slate-800 p-4">
           <div className="flex items-baseline justify-between mb-3">
-            <h3 className="text-sm font-medium text-slate-400">By Category — {new Date().toLocaleString(undefined, { month: "long", year: "numeric" })}</h3>
+            <h3 className="text-sm font-medium text-slate-400">By Category — {new Date(mk + "-01").toLocaleString(undefined, { month: "long", year: "numeric" })}</h3>
             <p className="text-lg font-semibold text-white">{format(monthTotal, displayCurrency)}</p>
           </div>
           {categoryData.length === 0 ? (

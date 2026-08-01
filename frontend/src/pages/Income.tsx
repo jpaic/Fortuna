@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import type { Income as IncomeEntry, Asset } from "../types";
 import { Modal } from "../components/ui/Modal";
+import { MonthPicker } from "../components/ui/MonthPicker";
 import { IncomeForm } from "../components/forms/IncomeForm";
 import type { IncomeInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
@@ -19,12 +20,29 @@ export function Income() {
   const [editing, setEditing] = useState<IncomeEntry | null>(null);
   const { format, displayCurrency } = useCurrency();
 
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+  );
+
   const { data: assets } = useQuery<Asset[]>({
     queryKey: ["assets"],
     queryFn: async () => (await api.get("/assets")).data,
   });
 
   const assetMap = new Map(assets?.map((a) => [a.id, assetDisplayName(a)]) ?? []);
+
+  const filteredEntries = useMemo(
+    () => (list.data ?? []).filter((e) => String(e.date).slice(0, 7) === selectedMonth),
+    [list.data, selectedMonth]
+  );
+
+  const years = useMemo(() => {
+    const set = new Set<number>();
+    for (const e of list.data ?? []) set.add(Number(String(e.date).slice(0, 4)));
+    if (set.size === 0) set.add(new Date().getFullYear());
+    return [...set].sort((a, b) => b - a);
+  }, [list.data]);
 
   async function handleSubmit(data: IncomeInput) {
     if (editing) {
@@ -61,8 +79,10 @@ export function Income() {
         </button>
       </div>
 
+      <MonthPicker value={selectedMonth} onChange={setSelectedMonth} years={years} />
+
       {list.data && list.data.length > 0 && (
-        <IncomeCharts entries={list.data} />
+        <IncomeCharts entries={list.data} monthKey={selectedMonth} />
       )}
 
       <div className="overflow-hidden rounded-xl border border-slate-800">
@@ -78,7 +98,7 @@ export function Income() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
-            {list.data?.map((entry) => (
+            {filteredEntries.map((entry) => (
               <tr key={entry.id} className="text-slate-200">
                 <td className="px-4 py-3">{entry.source}</td>
                 <td className="px-4 py-3 text-slate-400">{incomeLabel(entry.category)}</td>
@@ -101,10 +121,10 @@ export function Income() {
                 </td>
               </tr>
             ))}
-            {list.data?.length === 0 && (
+            {filteredEntries.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-                  No income recorded yet.
+                  No income recorded for this month.
                 </td>
               </tr>
             )}
