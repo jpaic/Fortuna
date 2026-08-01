@@ -32,12 +32,28 @@ function buildSelect(table: string, columns: ColumnMap, computedColumns?: Column
 }
 
 const NUMERIC_RE = /^-?\d+(\.\d+)?$/;
+function isPureDate(d: Date): boolean {
+  return (
+    d.getHours() === 0 &&
+    d.getMinutes() === 0 &&
+    d.getSeconds() === 0 &&
+    d.getMilliseconds() === 0
+  );
+}
+function dateToInput(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 function castRow(row: unknown): Record<string, unknown> {
   const obj = row as Record<string, unknown>;
   for (const key of Object.keys(obj)) {
     const val = obj[key];
     if (typeof val === "string" && NUMERIC_RE.test(val)) {
       obj[key] = Number(val);
+    } else if (val instanceof Date && isPureDate(val)) {
+      obj[key] = dateToInput(val);
     }
   }
   return obj;
