@@ -5,7 +5,7 @@ import { asyncHandler, ApiError } from "../middleware/error.js";
 import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "./helpers.js";
-import { getRates, convert } from "../utils/currency.js";
+import { getRates, convert, ALLOWED_CURRENCIES } from "../utils/currency.js";
 
 export const transferRouter = Router();
 transferRouter.use(requireAuth);
@@ -14,12 +14,13 @@ const transferSchema = z.object({
   fromAssetId: z.string().uuid(),
   toAssetId: z.string().uuid(),
   amount: z.number().positive(),
+  amountCurrency: z.string().length(3).optional(),
 });
 
 transferRouter.post(
   "/",
   asyncHandler(async (req, res) => {
-    const { fromAssetId, toAssetId, amount } = transferSchema.parse(req.body);
+    const { fromAssetId, toAssetId, amount, amountCurrency: amountCurrencyInput } = transferSchema.parse(req.body);
     const userId = req.userId!;
 
     if (fromAssetId === toAssetId) {
@@ -46,11 +47,16 @@ transferRouter.post(
 
     const fromCurrency = fromAsset.currency ?? "EUR";
     const toCurrency = toAsset.currency ?? "EUR";
+    const amountCurrency = amountCurrencyInput ?? fromCurrency;
 
-    const rates = await getRates(toCurrency);
-    const converted = convert(amount, fromCurrency, toCurrency, rates);
+    if (!ALLOWED_CURRENCIES.includes(amountCurrency)) {
+      throw new ApiError(400, "Invalid amount currency");
+    }
 
-    const newFromValue = Math.max(0, Number(fromAsset.current_value) - amount);
+    const amountInFrom = convert(amount, amountCurrency, fromCurrency, await getRates(fromCurrency));
+    const converted = convert(amountInFrom, fromCurrency, toCurrency, await getRates(toCurrency));
+
+    const newFromValue = Math.max(0, Number(fromAsset.current_value) - amountInFrom);
     const newToValue = Number(toAsset.current_value) + converted;
 
     await query(
@@ -69,7 +75,7 @@ transferRouter.post(
     await query(
       `INSERT INTO asset_transfers (user_id, from_asset_id, to_asset_id, amount, from_currency, to_currency, converted_amount)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId, fromAssetId, toAssetId, amount, fromCurrency, toCurrency, converted]
+      [userId, fromAssetId, toAssetId, amountInFrom, fromCurrency, toCurrency, converted]
     );
 
     res.json({

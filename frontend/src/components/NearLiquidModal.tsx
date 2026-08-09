@@ -3,8 +3,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useCurrency } from "../context/CurrencyContext";
 import { assetDisplayName } from "../lib/assetDisplayName";
+import { CURRENCIES } from "../lib/currencies";
 import { Modal } from "./ui/Modal";
 import type { Asset } from "../types";
+
+const inputClass =
+  "w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none";
+
+function currencySymbol(c: string) {
+  return (
+    new Intl.NumberFormat(undefined, { style: "currency", currency: c })
+      .formatToParts(0)
+      .find((p) => p.type === "currency")?.value ?? c
+  );
+}
 
 export function NearLiquidModal({
   asset,
@@ -14,9 +26,10 @@ export function NearLiquidModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const { format } = useCurrency();
+  const { format, convert } = useCurrency();
   const [targetId, setTargetId] = useState("");
   const [amount, setAmount] = useState("");
+  const [amountCurrency, setAmountCurrency] = useState(asset.currency);
 
   const { data: assets } = useQuery<Asset[]>({
     queryKey: ["assets"],
@@ -29,12 +42,13 @@ export function NearLiquidModal({
       ((a.category === "cash") || (a.category === "bank" && a.subCategory === "checking"))
   );
 
-  const convert = useMutation({
+  const convertMutation = useMutation({
     mutationFn: async () =>
       api.post("/assets/transfer", {
         fromAssetId: asset.id,
         toAssetId: targetId,
         amount: Number(amount),
+        amountCurrency,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assets"] });
@@ -45,7 +59,10 @@ export function NearLiquidModal({
 
   const selectedTarget = targets.find((a) => a.id === targetId);
   const numAmount = Number(amount);
-  const isValid = targetId && numAmount > 0 && numAmount <= asset.currentValue;
+  const amountInSource = convert(numAmount, amountCurrency);
+  const sourceBalanceInDisplay = convert(asset.currentValue, asset.currency);
+  const overBalance = numAmount > 0 && amountInSource > sourceBalanceInDisplay;
+  const isValid = targetId && numAmount > 0 && amountInSource > 0 && !overBalance;
 
   return (
     <Modal title="Near-liquid asset" onClose={onClose}>
@@ -94,45 +111,68 @@ export function NearLiquidModal({
           </select>
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm text-slate-400">Amount</label>
-          <input
-            type="number"
-            step="any"
-            min={0}
-            max={asset.currentValue}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder={format(0, asset.currency).replace("0", "")}
-            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-          />
-          <p className="mt-1 text-xs text-slate-500">
-            Balance: {format(asset.currentValue, asset.currency)}
-          </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="mb-1 block text-sm text-slate-400">Amount</label>
+            <input
+              type="number"
+              step="any"
+              min={0}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder={`${currencySymbol(amountCurrency)}0`}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-slate-400">Currency</label>
+            <select
+              value={amountCurrency}
+              onChange={(e) => setAmountCurrency(e.target.value)}
+              className={`${inputClass} uppercase`}
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
         </div>
-
-        {selectedTarget &&
-          asset.currency !== selectedTarget.currency &&
-          numAmount > 0 && (
-            <p className="text-xs text-slate-400">
-              Amount will be converted from {asset.currency} to{" "}
-              {selectedTarget.currency}
-            </p>
-          )}
-
-        {convert.isError && (
+        {overBalance && (
           <p className="text-xs text-rose-400">
-            {(convert.error as any)?.response?.data?.error || "Conversion failed"}
+            Exceeds value of {format(asset.currentValue, asset.currency)}
+          </p>
+        )}
+
+        {selectedTarget && numAmount > 0 && (amountCurrency !== asset.currency || asset.currency !== selectedTarget.currency) && (
+          <p className="text-xs text-slate-400">
+            {amountCurrency !== asset.currency && (
+              <>
+                {numAmount} {amountCurrency} is deducted as{" "}
+                <span className="text-slate-300">{format(amountInSource, asset.currency)}</span>
+                {asset.currency !== selectedTarget.currency && " and "}
+              </>
+            )}
+            {asset.currency !== selectedTarget.currency && (
+              <>
+                credited to {selectedTarget.currency} on the target account
+              </>
+            )}
+          </p>
+        )}
+
+        {convertMutation.isError && (
+          <p className="text-xs text-rose-400">
+            {(convertMutation.error as any)?.response?.data?.error || "Conversion failed"}
           </p>
         )}
 
         <button
-          onClick={() => convert.mutate()}
-          disabled={!isValid || convert.isPending}
+          onClick={() => convertMutation.mutate()}
+          disabled={!isValid || convertMutation.isPending}
           className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-500 py-2 text-sm font-medium text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
         >
-          {convert.isPending && <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />}
-          {convert.isPending ? "Converting…" : "Convert to liquid"}
+          {convertMutation.isPending && <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />}
+          {convertMutation.isPending ? "Converting…" : "Convert to liquid"}
         </button>
       </div>
     </Modal>

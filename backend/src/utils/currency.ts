@@ -1,4 +1,4 @@
-const ALLOWED_CURRENCIES = ["EUR", "USD", "GBP", "CHF", "RSD"];
+export const ALLOWED_CURRENCIES = ["EUR", "USD", "GBP", "CHF", "RSD"];
 
 let ratesCache: { base: string; rates: Record<string, number>; ts: number } | null = null;
 const CACHE_TTL = 60 * 60 * 1000;
