@@ -6,6 +6,7 @@ import { api } from "../../lib/api";
 import { assetDisplayName } from "../../lib/assetDisplayName";
 import type { Asset } from "../../types";
 import { CURRENCIES } from "../../lib/currencies";
+import { maxDayOfPeriod, dayOfPeriodLabel } from "../../lib/recurring";
 
 const CATEGORY_GROUPS: { label: string; options: { value: string; label: string }[] }[] = [
   {
@@ -86,11 +87,13 @@ export function IncomeForm({
     formState: { errors },
   } = useForm<IncomeFormValues, unknown, IncomeInput>({
     resolver: zodResolver(incomeSchema),
-    defaultValues: { currency: displayCurrency ?? "EUR", category: "salary", frequency: "monthly", date: new Date().toISOString().slice(0, 10), ...defaultValues },
+    defaultValues: { currency: displayCurrency ?? "EUR", category: "salary", frequency: "monthly", dayOfPeriod: 1, date: new Date().toISOString().slice(0, 10), ...defaultValues },
   });
 
   const frequency = watch("frequency");
+  const dayOfPeriod = Number(watch("dayOfPeriod")) || 0;
   const isRecurring = frequency !== "one_time";
+  const freq = frequency ?? "monthly";
 
   const { data: cashAssets } = useQuery<Asset[]>({
     queryKey: ["assets"],
@@ -132,7 +135,7 @@ export function IncomeForm({
         </div>
       </div>
 
-      <div className={`grid gap-4 ${isRecurring ? "grid-cols-2" : "grid-cols-3"}`}>
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <label className={labelClass}>Amount</label>
           <input type="number" step="any" {...register("amount")} className={inputClass} />
@@ -146,13 +149,40 @@ export function IncomeForm({
             ))}
           </select>
         </div>
-        {!isRecurring && (
-          <div>
-            <label className={labelClass}>Date</label>
-            <input type="date" {...register("date")} className={inputClass} />
-          </div>
-        )}
+        <div>
+          <label className={labelClass}>{isRecurring ? "Start date" : "Date"}</label>
+          <input type="date" {...register("date")} className={inputClass} />
+        </div>
       </div>
+
+      {isRecurring && (
+        <div>
+          <label className={labelClass}>Update on day of period</label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <input
+                type="number"
+                min={1}
+                max={maxDayOfPeriod(freq)}
+                step="any"
+                {...register("dayOfPeriod")}
+                className={inputClass}
+              />
+              {errors.dayOfPeriod && <p className="mt-1 text-xs text-rose-400">{errors.dayOfPeriod.message}</p>}
+            </div>
+            <div className="flex items-end">
+              <p className="text-xs text-slate-400">
+                {dayOfPeriod > 0 ? dayOfPeriodLabel(freq, dayOfPeriod) : "—"}
+              </p>
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            The asset will be updated on this day of every {freq.replace(/_/g, " ")} period
+            (1 = start of the period). If the day has already passed this period, it is applied
+            immediately.
+          </p>
+        </div>
+      )}
 
       {cashAssets && cashAssets.filter((a) => (a.category === "cash") || (a.category === "bank" && a.subCategory === "checking")).length > 0 && (
         <div>

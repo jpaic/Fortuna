@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { maxDayOfPeriod } from "./recurring";
 
 export const loginSchema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -53,49 +54,73 @@ export const investmentSchema = z.object({
   assetId: z.string().optional(),
 });
 
-export const incomeSchema = z.object({
-  source: z.string().min(1, "Source is required"),
-  category: z.enum([
-    "salary", "bonus", "commission", "overtime",
-    "freelance", "consulting", "side_hustle",
-    "dividends", "interest_income", "capital_gains", "rental_income",
-    "royalties", "affiliate",
-    "gifts_received", "refund", "tax_refund", "other",
-  ]),
-  amount: z.coerce.number().positive(),
-  currency: z.string().length(3),
-  frequency: z.enum(["one_time", "weekly", "biweekly", "monthly", "quarterly", "semi_annual", "yearly"]),
-  date: z.string().min(1),
-  notes: z.string().optional(),
-  assetId: z.string().optional(),
-});
+export const incomeSchema = z
+  .object({
+    source: z.string().min(1, "Source is required"),
+    category: z.enum([
+      "salary", "bonus", "commission", "overtime",
+      "freelance", "consulting", "side_hustle",
+      "dividends", "interest_income", "capital_gains", "rental_income",
+      "royalties", "affiliate",
+      "gifts_received", "refund", "tax_refund", "other",
+    ]),
+    amount: z.coerce.number().positive(),
+    currency: z.string().length(3),
+    frequency: z.enum(["one_time", "weekly", "biweekly", "monthly", "quarterly", "semi_annual", "yearly"]),
+    dayOfPeriod: z.coerce.number().int().min(1).max(366).optional(),
+    date: z.string().min(1),
+    notes: z.string().optional(),
+    assetId: z.string().optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (d.frequency === "one_time") return;
+    if (d.dayOfPeriod === undefined || d.dayOfPeriod > maxDayOfPeriod(d.frequency)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Day must be between 1 and ${maxDayOfPeriod(d.frequency)} for ${d.frequency} frequency`,
+        path: ["dayOfPeriod"],
+      });
+    }
+  });
 
-export const expenseSchema = z.object({
-  category: z.enum([
-    "rent", "mortgage", "utilities", "home_reno", "home_ins", "hoa",
-    "groceries", "dining_out", "fast_food", "coffee", "drinks",
-    "fuel", "car_ins", "car_maint", "parking", "transit", "ride_share",
-    "clothing", "grooming", "fitness",
-    "subs_stream", "subs_software", "subs_gaming", "news",
-    "doctors", "pharmacy", "dental", "vision",
-    "tuition", "books", "courses",
-    "kids", "eldercare",
-    "pets",
-    "travel",
-    "cinema", "club", "concerts", "hobbies", "sports_events",
-    "gifts", "donations",
-    "fees", "taxes", "insurance", "interest",
-    "stocks", "crypto_inv", "etf_inv", "bonds",
-    "other",
-  ]),
-  merchant: z.string().optional(),
-  amount: z.coerce.number().positive(),
-  currency: z.string().length(3),
-  frequency: z.enum(["one_time", "weekly", "biweekly", "monthly", "quarterly", "semi_annual", "yearly"]).default("one_time"),
-  date: z.string().min(1),
-  notes: z.string().optional(),
-  assetId: z.string().optional(),
-});
+export const expenseSchema = z
+  .object({
+    category: z.enum([
+      "rent", "mortgage", "utilities", "home_reno", "home_ins", "hoa",
+      "groceries", "dining_out", "fast_food", "coffee", "drinks",
+      "fuel", "car_ins", "car_maint", "parking", "transit", "ride_share",
+      "clothing", "grooming", "fitness",
+      "subs_stream", "subs_software", "subs_gaming", "news",
+      "doctors", "pharmacy", "dental", "vision",
+      "tuition", "books", "courses",
+      "kids", "eldercare",
+      "pets",
+      "travel",
+      "cinema", "club", "concerts", "hobbies", "sports_events",
+      "gifts", "donations",
+      "fees", "taxes", "insurance", "interest",
+      "stocks", "crypto_inv", "etf_inv", "bonds",
+      "other",
+    ]),
+    merchant: z.string().optional(),
+    amount: z.coerce.number().positive(),
+    currency: z.string().length(3),
+    frequency: z.enum(["one_time", "weekly", "biweekly", "monthly", "quarterly", "semi_annual", "yearly"]).default("one_time"),
+    dayOfPeriod: z.coerce.number().int().min(1).max(366).optional(),
+    date: z.string().min(1),
+    notes: z.string().optional(),
+    assetId: z.string().optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (d.frequency === "one_time") return;
+    if (d.dayOfPeriod === undefined || d.dayOfPeriod > maxDayOfPeriod(d.frequency)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Day must be between 1 and ${maxDayOfPeriod(d.frequency)} for ${d.frequency} frequency`,
+        path: ["dayOfPeriod"],
+      });
+    }
+  });
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;

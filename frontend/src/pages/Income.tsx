@@ -11,6 +11,7 @@ import type { IncomeInput } from "../lib/schemas";
 import { useCurrency } from "../context/CurrencyContext";
 import { incomeLabel } from "../lib/incomeLabels";
 import { frequencyLabel } from "../lib/frequencyLabels";
+import { scheduleLabel } from "../lib/recurring";
 import { assetDisplayName } from "../lib/assetDisplayName";
 import { IncomeCharts } from "../components/charts/IncomeCharts";
 
@@ -102,8 +103,11 @@ export function Income() {
               <tr key={entry.id} className="text-slate-200">
                 <td className="px-4 py-3">{entry.source}</td>
                 <td className="px-4 py-3 text-slate-400">{incomeLabel(entry.category)}</td>
-                <td className="px-4 py-3 capitalize text-slate-400">
+                <td className="px-4 py-3 text-slate-400">
                   {frequencyLabel(entry.frequency)}
+                  {entry.frequency !== "one_time" && (
+                    <span className="text-slate-500"> · {scheduleLabel(entry.frequency, entry.dayOfPeriod)}</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-emerald-400">
                   +{format(entry.amount, entry.currency)}
@@ -145,6 +149,7 @@ export function Income() {
               amount: editing.amount,
               currency: editing.currency,
               frequency: editing.frequency,
+              dayOfPeriod: editing.dayOfPeriod,
               date: editing.date,
               notes: editing.notes,
               assetId: editing.assetId,

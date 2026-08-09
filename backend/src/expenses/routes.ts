@@ -31,6 +31,7 @@ const createSchema = z.object({
   currency: z.string().length(3).default("EUR"),
   date: z.string(),
   frequency: z.enum(["one_time", "weekly", "biweekly", "monthly", "quarterly", "semi_annual", "yearly"]).default("one_time"),
+  dayOfPeriod: z.number().int().min(1).max(366).optional(),
   notes: z.string().optional(),
   assetId: z.string().uuid().optional(),
 });
@@ -44,6 +45,7 @@ const columns = {
   currency: "currency",
   date: "date",
   frequency: "frequency",
+  dayOfPeriod: "day_of_period",
   notes: "notes",
   assetId: "asset_id",
 };

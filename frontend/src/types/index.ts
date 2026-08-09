@@ -64,6 +64,7 @@ export interface Income {
   amount: number;
   currency: string;
   frequency: "one_time" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semi_annual" | "yearly";
+  dayOfPeriod?: number;
   date: string;
   notes?: string;
   assetId?: string;
@@ -84,6 +85,7 @@ export interface Expense {
   amount: number;
   currency: string;
   frequency: "one_time" | "weekly" | "biweekly" | "monthly" | "quarterly" | "semi_annual" | "yearly";
+  dayOfPeriod?: number;
   date: string;
   notes?: string;
   assetId?: string;
