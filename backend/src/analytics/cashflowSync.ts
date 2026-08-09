@@ -1,5 +1,5 @@
 import { query } from "../db/pool.js";
-import { periodKey } from "../recurring/period.js";
+import { periodKey, firstEligiblePeriod } from "../recurring/period.js";
 
 const normalize = (amt: number, freq: string): number => {
   switch (freq) {
@@ -59,9 +59,15 @@ export async function syncCashflowForEntry(
     const monthlyAmount = normalize(amount, frequency);
     const startDate = new Date(row.date as string | number | Date);
     const now = new Date();
+    const dayOfPeriod = Number(row.day_of_period ?? 1);
 
-    // Insert rows for each month from start date to now (or to the termination month)
-    const d = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    // Planned rows start from the first period the entry can actually fire in,
+    // so a start date after the scheduled day doesn't count its start month.
+    const first = firstEligiblePeriod(startDate, frequency, dayOfPeriod);
+
+    // Insert rows for each month from the first eligible period to now
+    // (or to the termination month)
+    const d = new Date(first.getFullYear(), first.getMonth(), 1);
     while (d <= now) {
       if (terminatedAt && d.getTime() > terminatedAt.getTime()) break;
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;

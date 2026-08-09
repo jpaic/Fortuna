@@ -91,6 +91,20 @@ export function isDue(date: Date, freq: string, dayOfPeriod: number): boolean {
   return daysIntoPeriod(date, freq) >= scheduledDay(date, freq, dayOfPeriod);
 }
 
+/**
+ * The first period in which the entry can fire: the period containing the
+ * start date, unless the entry starts after that period's scheduled day —
+ * in which case it waits for the following period.
+ */
+export function firstEligiblePeriod(startDate: Date, freq: string, dayOfPeriod: number): Date {
+  const p = startOfPeriod(startDate, freq);
+  const scheduled = scheduledDay(p, freq, dayOfPeriod);
+  const scheduledDate = new Date(p);
+  scheduledDate.setDate(p.getDate() + scheduled - 1);
+  if (startDate > scheduledDate) return startOfNextPeriod(p, freq);
+  return p;
+}
+
 /** Dedup key identifying the period containing `date`. */
 export function periodKey(date: Date, freq: string): string {
   if (freq === "weekly") {

@@ -2,12 +2,10 @@ import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "../assets/helpers.js";
 import { recordRecurringCashflow } from "../analytics/cashflowSync.js";
-import { toDateStr, periodKey, isDue } from "./period.js";
+import { toDateStr, periodKey, isDue, startOfPeriod, firstEligiblePeriod } from "./period.js";
 
 async function processTable(tableName: "expenses" | "income") {
   const today = new Date();
-  const todayStr =
-    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   const rows = await query<{
     id: string;
@@ -37,8 +35,12 @@ async function processTable(tableName: "expenses" | "income") {
     const freq = row.frequency;
     const dayOfPeriod = Number(row.day_of_period ?? 1);
 
-    // Don't apply before the entry's start date.
-    if (toDateStr(row.date) > todayStr) continue;
+    // The first period this entry can fire in. If it started after the
+    // scheduled day of its start period, that period is skipped and it waits
+    // for the next one (this also covers start dates in the future).
+    const startDate = new Date(`${toDateStr(row.date)}T00:00:00`);
+    const first = firstEligiblePeriod(startDate, freq, dayOfPeriod);
+    if (startOfPeriod(today, freq) < first) continue;
 
     // Only apply once the scheduled day has been reached this period.
     if (!isDue(today, freq, dayOfPeriod)) continue;
