@@ -25,6 +25,7 @@ const createSchema = z.object({
   date: z.string(),
   notes: z.string().optional(),
   assetId: z.string().uuid().optional(),
+  terminatedAt: z.string().nullable().optional(),
 });
 
 const updateSchema = createSchema.partial();
@@ -39,6 +40,7 @@ const columns = {
   date: "date",
   notes: "notes",
   assetId: "asset_id",
+  terminatedAt: "terminated_at",
 };
 
 async function adjustAssetFromRow(userId: string, row: Record<string, unknown>, reverse: boolean) {

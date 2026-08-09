@@ -9,6 +9,7 @@ interface EntryLike {
   amount: number;
   currency: string;
   frequency?: string | null;
+  terminatedAt?: string | null;
 }
 
 interface MonthDatum {
@@ -100,19 +101,39 @@ export function MonthlyComparisonChart({
   const { format, displayCurrency, convert } = useCurrency();
 
   const data = useMemo(() => {
+    const months = last12Months();
     const byMonth = new Map<string, { total: number; recurring: number; oneTime: number; count: number }>();
+    const bucket = (mk: string) => {
+      const b = byMonth.get(mk) ?? { total: 0, recurring: 0, oneTime: 0, count: 0 };
+      byMonth.set(mk, b);
+      return b;
+    };
+
     for (const e of entries) {
-      const mk = monthKeyOf(e.date);
-      const bucket = byMonth.get(mk) ?? { total: 0, recurring: 0, oneTime: 0, count: 0 };
       const amt = convert(e.amount, e.currency);
-      bucket.total += amt;
-      bucket.count += 1;
-      if (isRecurring(e.frequency)) bucket.recurring += amt;
-      else bucket.oneTime += amt;
-      byMonth.set(mk, bucket);
+      if (isRecurring(e.frequency)) {
+        // Recurring entries persist for every month from their inception
+        // (or up to their termination month if terminated).
+        const startMonth = monthKeyOf(e.date);
+        const termMonth = e.terminatedAt ? monthKeyOf(e.terminatedAt) : null;
+        for (const mk of months) {
+          if (mk < startMonth) continue;
+          if (termMonth && mk > termMonth) continue;
+          const b = bucket(mk);
+          b.total += amt;
+          b.recurring += amt;
+          b.count += 1;
+        }
+      } else {
+        const mk = monthKeyOf(e.date);
+        const b = bucket(mk);
+        b.total += amt;
+        b.oneTime += amt;
+        b.count += 1;
+      }
     }
 
-    const rows: MonthDatum[] = last12Months().map((mk) => {
+    const rows: MonthDatum[] = months.map((mk) => {
       const b = byMonth.get(mk);
       return {
         monthKey: mk,

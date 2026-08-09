@@ -68,6 +68,7 @@ export interface Income {
   date: string;
   notes?: string;
   assetId?: string;
+  terminatedAt?: string | null;
 }
 
 export type IncomeCategory =
@@ -89,6 +90,7 @@ export interface Expense {
   date: string;
   notes?: string;
   assetId?: string;
+  terminatedAt?: string | null;
 }
 
 export type ExpenseCategory =

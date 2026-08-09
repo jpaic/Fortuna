@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, Ban, RotateCcw } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
@@ -33,8 +33,26 @@ export function Income() {
 
   const assetMap = new Map(assets?.map((a) => [a.id, assetDisplayName(a)]) ?? []);
 
-  const filteredEntries = useMemo(
-    () => (list.data ?? []).filter((e) => String(e.date).slice(0, 7) === selectedMonth),
+  const monthOf = (d: string) => String(d).slice(0, 7);
+
+  const recurringEntries = useMemo(
+    () => (list.data ?? []).filter(
+      (e) => e.frequency !== "one_time" && monthOf(e.date) <= selectedMonth && !e.terminatedAt
+    ),
+    [list.data, selectedMonth]
+  );
+
+  const terminatedEntries = useMemo(
+    () => (list.data ?? []).filter(
+      (e) => e.frequency !== "one_time" && monthOf(e.date) <= selectedMonth && !!e.terminatedAt
+    ),
+    [list.data, selectedMonth]
+  );
+
+  const oneTimeEntries = useMemo(
+    () => (list.data ?? []).filter(
+      (e) => e.frequency === "one_time" && monthOf(e.date) === selectedMonth
+    ),
     [list.data, selectedMonth]
   );
 
@@ -63,6 +81,15 @@ export function Income() {
   function closeModal() {
     setShowForm(false);
     setEditing(null);
+  }
+
+  function handleTerminate(entry: IncomeEntry) {
+    if (!window.confirm(`Terminate "${entry.source}"? It will stop repeating, but its history stays.`)) return;
+    update.mutate({ id: entry.id, payload: { terminatedAt: new Date().toISOString() } });
+  }
+
+  function handleReactivate(entry: IncomeEntry) {
+    update.mutate({ id: entry.id, payload: { terminatedAt: null } });
   }
 
   return (
@@ -98,17 +125,83 @@ export function Income() {
               <th className="px-4 py-3" />
             </tr>
           </thead>
+          {(recurringEntries.length > 0 || terminatedEntries.length > 0) && (
+            <tbody className="divide-y divide-slate-800">
+              <tr>
+                <td colSpan={6} className="bg-slate-800/40 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Recurring
+                </td>
+              </tr>
+              {recurringEntries.map((entry) => (
+                <tr key={entry.id} className="text-slate-200">
+                  <td className="px-4 py-3">{entry.source}</td>
+                  <td className="px-4 py-3 text-slate-400">{incomeLabel(entry.category)}</td>
+                  <td className="px-4 py-3 text-slate-400">
+                    {frequencyLabel(entry.frequency)}
+                    <span className="text-slate-500"> · {scheduleLabel(entry.frequency, entry.dayOfPeriod)}</span>
+                  </td>
+                  <td className="px-4 py-3 text-emerald-400">
+                    +{format(entry.amount, entry.currency)}
+                  </td>
+                  <td className="px-4 py-3 text-slate-400">
+                    {entry.assetId ? (assetMap.get(entry.assetId) ?? "—") : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => handleTerminate(entry)} title="Terminate" className="text-slate-500 hover:text-amber-400 mr-2">
+                      <Ban size={16} />
+                    </button>
+                    <button onClick={() => openEdit(entry)} className="text-slate-500 hover:text-emerald-400 mr-2">
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => remove.mutate(entry.id)} className="text-slate-500 hover:text-rose-400">
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {terminatedEntries.map((entry) => (
+                <tr key={entry.id} className="text-slate-200 opacity-60">
+                  <td className="px-4 py-3">{entry.source}</td>
+                  <td className="px-4 py-3 text-slate-400">{incomeLabel(entry.category)}</td>
+                  <td className="px-4 py-3 text-slate-400">
+                    {frequencyLabel(entry.frequency)}
+                    <span className="text-slate-500"> · {scheduleLabel(entry.frequency, entry.dayOfPeriod)}</span>
+                    <span className="ml-2 rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                      Terminated
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-emerald-400">
+                    +{format(entry.amount, entry.currency)}
+                  </td>
+                  <td className="px-4 py-3 text-slate-400">
+                    {entry.assetId ? (assetMap.get(entry.assetId) ?? "—") : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => handleReactivate(entry)} title="Reactivate" className="text-slate-500 hover:text-emerald-400 mr-2">
+                      <RotateCcw size={16} />
+                    </button>
+                    <button onClick={() => openEdit(entry)} className="text-slate-500 hover:text-emerald-400 mr-2">
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => remove.mutate(entry.id)} className="text-slate-500 hover:text-rose-400">
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          )}
           <tbody className="divide-y divide-slate-800">
-            {filteredEntries.map((entry) => (
+            <tr>
+              <td colSpan={6} className="bg-slate-800/40 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                One-time — {new Date(selectedMonth + "-01").toLocaleString(undefined, { month: "long", year: "numeric" })}
+              </td>
+            </tr>
+            {oneTimeEntries.map((entry) => (
               <tr key={entry.id} className="text-slate-200">
                 <td className="px-4 py-3">{entry.source}</td>
                 <td className="px-4 py-3 text-slate-400">{incomeLabel(entry.category)}</td>
-                <td className="px-4 py-3 text-slate-400">
-                  {frequencyLabel(entry.frequency)}
-                  {entry.frequency !== "one_time" && (
-                    <span className="text-slate-500"> · {scheduleLabel(entry.frequency, entry.dayOfPeriod)}</span>
-                  )}
-                </td>
+                <td className="px-4 py-3 text-slate-400">{frequencyLabel(entry.frequency)}</td>
                 <td className="px-4 py-3 text-emerald-400">
                   +{format(entry.amount, entry.currency)}
                 </td>
@@ -125,10 +218,10 @@ export function Income() {
                 </td>
               </tr>
             ))}
-            {filteredEntries.length === 0 && (
+            {oneTimeEntries.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-                  No income recorded for this month.
+                  No one-time income for this month.
                 </td>
               </tr>
             )}

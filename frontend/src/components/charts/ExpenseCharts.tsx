@@ -47,7 +47,9 @@ export function ExpenseCharts({
     const out: Expense[] = [];
     for (const e of entries) {
       if (e.frequency === "one_time") continue;
-      if (monthKey(e.date) <= mk) out.push(e);
+      if (monthKey(e.date) > mk) continue;
+      if (e.terminatedAt && monthKey(e.terminatedAt) < mk) continue;
+      out.push(e);
     }
     return out;
   }, [entries, mk]);
