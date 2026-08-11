@@ -176,45 +176,61 @@ async function fetchYahooHistory(
   currency: string,
   exchange?: string | null
 ): Promise<PriceHistory> {
-  const headers = { "User-Agent": "Mozilla/5.0" };
   const fullTicker = exchange ? ticker + exchange : ticker;
-
-  async function getRange(range: string): Promise<number | null> {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(fullTicker)}?interval=1d&range=${range}`;
-    const resp = await fetch(url, { headers });
-    if (!resp.ok) return null;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(fullTicker)}?interval=1d&range=6mo`;
+  try {
+    const resp = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!resp.ok) return { daily: null, weekly: null, monthly: null };
     const data = (await resp.json()) as {
-      chart?: { result?: [{ indicators?: { quote?: [{ close?: (number | null)[] }] }; timestamp?: number[] }] };
+      chart?: { result?: [{ meta?: { regularMarketPrice?: number }; indicators?: { quote?: [{ close?: (number | null)[] }] }; timestamp?: number[] }] };
     };
-    const closes = data.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-    if (!closes || closes.length < 2) return null;
-    for (let i = closes.length - 1; i >= 0; i--) {
-      if (closes[i] != null) return closes[i];
+    const result = data.chart?.result?.[0];
+    const timestamps = result?.timestamp;
+    const closes = result?.indicators?.quote?.[0]?.close;
+    if (!timestamps || !closes || closes.length < 2) return { daily: null, weekly: null, monthly: null };
+    const ts = timestamps;
+    const cl = closes;
+
+    const metaPrice = result?.meta?.regularMarketPrice;
+    let currentPrice = 0;
+    for (let i = cl.length - 1; i >= 0; i--) {
+      if (cl[i] != null) { currentPrice = cl[i]!; break; }
     }
-    return null;
-  }
+    if (metaPrice != null && metaPrice > 0) currentPrice = metaPrice;
+    if (currentPrice <= 0) return { daily: null, weekly: null, monthly: null };
 
-  const currentPrice = await getRange("1d");
-  if (currentPrice == null) return { daily: null, weekly: null, monthly: null };
+    const now = Date.now();
 
-  const d1 = await getRange("5d");
-  const w1 = await getRange("1mo");
-  const m1 = await getRange("3mo");
+    function priceAgo(ms: number): number | null {
+      const target = now - ms;
+      let best: { d: number; c: number } | null = null;
+      for (let i = 0; i < ts.length; i++) {
+        if (cl[i] == null) continue;
+        const dist = Math.abs(ts[i] * 1000 - target);
+        if (!best || dist < best.d) best = { d: dist, c: cl[i]! };
+      }
+      return best?.c ?? null;
+    }
 
-  const cur = currentPrice!;
+    function makeChange(past: number | null): PriceChange | null {
+      if (past == null || past === 0) return null;
+      const change = currentPrice - past;
+      return {
+        change,
+        changePercent: (change / past) * 100,
+        currentPrice,
+        previousPrice: past,
+      };
+    }
 
-  function makeChange(past: number | null): PriceChange | null {
-    if (past == null || past === 0) return null;
-    const change = cur - past;
     return {
-      change,
-      changePercent: (change / past) * 100,
-      currentPrice: cur,
-      previousPrice: past,
+      daily: makeChange(priceAgo(86_400_000)),
+      weekly: makeChange(priceAgo(7 * 86_400_000)),
+      monthly: makeChange(priceAgo(30 * 86_400_000)),
     };
+  } catch {
+    return { daily: null, weekly: null, monthly: null };
   }
-
-  return { daily: makeChange(d1), weekly: makeChange(w1), monthly: makeChange(m1) };
 }
 
 async function fetchCoinGeckoHistory(
@@ -267,8 +283,8 @@ async function fetchCoinGeckoHistory(
 const historyCache = new Map<string, { data: PriceHistory; ts: number }>();
 const HISTORY_TTL = 60 * 60 * 1000;
 
-function historyCacheKey(ticker: string, type: string, currency: string) {
-  return `${type}:${ticker.toUpperCase()}:${currency.toUpperCase()}`;
+function historyCacheKey(ticker: string, type: string, currency: string, exchange?: string | null) {
+  return `${type}:${ticker.toUpperCase()}:${currency.toUpperCase()}:${exchange ?? ""}`;
 }
 
 export async function fetchPriceHistory(
@@ -277,7 +293,7 @@ export async function fetchPriceHistory(
   currency: string,
   exchange?: string | null
 ): Promise<PriceHistory> {
-  const key = historyCacheKey(ticker, type, currency);
+  const key = historyCacheKey(ticker, type, currency, exchange);
   const cached = historyCache.get(key);
   if (cached && Date.now() - cached.ts < HISTORY_TTL) return cached.data;
 
@@ -303,8 +319,8 @@ export interface PricePoint {
 const timeseriesCache = new Map<string, { data: PricePoint[]; ts: number }>();
 const TS_TTL = 24 * 60 * 60 * 1000;
 
-function tsCacheKey(ticker: string, type: string, currency: string) {
-  return `${type}:${ticker.toUpperCase()}:${currency.toUpperCase()}`;
+function tsCacheKey(ticker: string, type: string, currency: string, exchange?: string | null) {
+  return `${type}:${ticker.toUpperCase()}:${currency.toUpperCase()}:${exchange ?? ""}`;
 }
 
 export async function fetchPriceTimeseries(
@@ -313,7 +329,7 @@ export async function fetchPriceTimeseries(
   currency: string,
   exchange?: string | null
 ): Promise<PricePoint[]> {
-  const key = tsCacheKey(ticker, type, currency);
+  const key = tsCacheKey(ticker, type, currency, exchange);
   const cached = timeseriesCache.get(key);
   if (cached && Date.now() - cached.ts < TS_TTL) return cached.data;
 

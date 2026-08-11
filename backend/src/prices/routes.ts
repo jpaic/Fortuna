@@ -95,13 +95,14 @@ pricesRouter.get(
     const ticker = String(req.query.ticker ?? "").toUpperCase();
     const type = String(req.query.type ?? "stock");
     const currency = String(req.query.currency ?? "EUR");
+    const exchange = req.query.exchange ? String(req.query.exchange) : undefined;
 
     if (!ticker) {
       res.status(400).json({ error: "ticker is required" });
       return;
     }
 
-    const history = await fetchPriceHistory(ticker, type, currency);
+    const history = await fetchPriceHistory(ticker, type, currency, exchange);
     res.json(history);
   })
 );
@@ -112,13 +113,14 @@ pricesRouter.get(
     const ticker = String(req.query.ticker ?? "").toUpperCase();
     const type = String(req.query.type ?? "stock");
     const currency = String(req.query.currency ?? "EUR");
+    const exchange = req.query.exchange ? String(req.query.exchange) : undefined;
 
     if (!ticker) {
       res.status(400).json({ error: "ticker is required" });
       return;
     }
 
-    const timeseries = await fetchPriceTimeseries(ticker, type, currency);
+    const timeseries = await fetchPriceTimeseries(ticker, type, currency, exchange);
     res.json(timeseries);
   })
 );
