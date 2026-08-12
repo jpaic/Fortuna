@@ -235,6 +235,7 @@ export function ExpenseCharts({
         color="#f87171"
         label="Expenses"
         onMonthClick={onMonthClick}
+        higherIsGood={false}
       />
     </div>
   );

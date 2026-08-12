@@ -59,14 +59,18 @@ function ComparisonTooltip({
   payload,
   format,
   displayCurrency,
+  higherIsGood,
 }: {
   active?: boolean;
   payload?: Array<{ payload: MonthDatum }>;
   format: (n: number, c: string) => string;
   displayCurrency: string;
+  higherIsGood: boolean;
 }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
+  const isUp = d.delta != null && d.delta >= 0;
+  const isGood = higherIsGood ? isUp : !isUp;
   return (
     <div style={tooltipStyle} className="px-3 py-2 text-slate-200">
       <p className="mb-1 font-medium text-white">
@@ -77,8 +81,8 @@ function ComparisonTooltip({
         Recurring {format(d.recurring, displayCurrency)} · One-time {format(d.oneTime, displayCurrency)}
       </p>
       {d.delta != null && (
-        <p className={d.delta >= 0 ? "text-emerald-400" : "text-rose-400"}>
-          {d.delta >= 0 ? "▲" : "▼"} vs prev {format(Math.abs(d.delta), displayCurrency)}
+        <p className={isGood ? "text-emerald-400" : "text-rose-400"}>
+          {isUp ? "▲" : "▼"} vs prev {format(Math.abs(d.delta), displayCurrency)}
         </p>
       )}
     </div>
@@ -91,12 +95,14 @@ export function MonthlyComparisonChart({
   color,
   label,
   onMonthClick,
+  higherIsGood = true,
 }: {
   entries: EntryLike[];
   selectedMonth: string;
   color: string;
   label: string;
   onMonthClick?: (monthKey: string) => void;
+  higherIsGood?: boolean;
 }) {
   const { format, displayCurrency, convert } = useCurrency();
 
@@ -201,7 +207,7 @@ export function MonthlyComparisonChart({
           }} />
           <Tooltip
             cursor={{ fill: "#1e293b", opacity: 0.4 }}
-            content={<ComparisonTooltip format={format} displayCurrency={displayCurrency} />}
+            content={<ComparisonTooltip format={format} displayCurrency={displayCurrency} higherIsGood={higherIsGood} />}
           />
           <Bar
             dataKey="recurring"
