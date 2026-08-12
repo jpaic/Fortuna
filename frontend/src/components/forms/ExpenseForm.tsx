@@ -71,7 +71,7 @@ const CATEGORY_GROUPS: { label: string; options: { value: string; label: string 
   {
     label: "Education",
     options: [
-      { value: "tuition", label: "Tuition" },
+      { value: "tuition_fees", label: "Tuition Fees" },
       { value: "books", label: "Books / Supplies" },
       { value: "courses", label: "Courses / Training" },
     ],

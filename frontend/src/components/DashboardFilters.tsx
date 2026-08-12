@@ -15,7 +15,7 @@ const EXPENSE_GROUPS: { group: string; cats: string[] }[] = [
   { group: "Personal", cats: ["clothing", "grooming", "fitness"] },
   { group: "Subscriptions", cats: ["subs_stream", "subs_software", "subs_gaming", "news"] },
   { group: "Health", cats: ["doctors", "pharmacy", "dental", "vision"] },
-  { group: "Education", cats: ["tuition", "books", "courses"] },
+  { group: "Education", cats: ["tuition_fees", "books", "courses"] },
   { group: "Family", cats: ["kids", "eldercare"] },
   { group: "Pets", cats: ["pets"] },
   { group: "Travel", cats: ["travel"] },

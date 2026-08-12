@@ -35,7 +35,7 @@ const EXPENSE_LABELS: Record<string, string> = {
   dental: "Dental",
   vision: "Vision",
   // Education
-  tuition: "Tuition",
+  tuition_fees: "Tuition Fees",
   books: "Books / Supplies",
   courses: "Courses / Training",
   // Family

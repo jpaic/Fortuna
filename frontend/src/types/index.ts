@@ -100,7 +100,7 @@ export type ExpenseCategory =
   | "clothing" | "grooming" | "fitness"
   | "subs_stream" | "subs_software" | "subs_gaming" | "news"
   | "doctors" | "pharmacy" | "dental" | "vision"
-  | "tuition" | "books" | "courses"
+  | "tuition_fees" | "books" | "courses"
   | "kids" | "eldercare"
   | "pets"
   | "travel"
