@@ -37,6 +37,7 @@ const CATEGORY_GROUPS: { label: string; options: { value: string; label: string 
       { value: "car_ins", label: "Car insurance" },
       { value: "car_maint", label: "Car maintenance" },
       { value: "car_registration", label: "Car registration" },
+      { value: "car_wash", label: "Car wash" },
       { value: "parking", label: "Parking" },
       { value: "transit", label: "Public transit" },
       { value: "taxi", label: "Taxi" },

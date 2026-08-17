@@ -17,6 +17,7 @@ const EXPENSE_LABELS: Record<string, string> = {
   car_ins: "Car Insurance",
   car_maint: "Car Maintenance",
   car_registration: "Car Registration",
+  car_wash: "Car Wash",
   parking: "Parking",
   transit: "Public Transit",
   taxi: "Taxi",

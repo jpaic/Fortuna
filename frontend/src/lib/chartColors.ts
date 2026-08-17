@@ -53,7 +53,7 @@ const PALETTE = [...PRIMARY, ...SECONDARY];
 const EXPENSE_ORDER = [
   "rent", "mortgage", "utilities", "home_reno", "home_ins", "hoa",
   "groceries", "dining_out", "fast_food", "coffee", "drinks",
-  "fuel", "car_ins", "car_maint", "car_registration", "parking", "transit", "taxi", "tolls",
+  "fuel", "car_ins", "car_maint", "car_registration", "car_wash", "parking", "transit", "taxi", "tolls",
   "clothing", "grooming", "fitness",
   "subs_stream", "subs_software", "subs_gaming", "news",
   "doctors", "pharmacy", "dental", "vision",
