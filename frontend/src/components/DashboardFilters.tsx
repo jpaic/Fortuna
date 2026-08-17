@@ -11,7 +11,7 @@ import { incomeLabel } from "../lib/incomeLabels";
 const EXPENSE_GROUPS: { group: string; cats: string[] }[] = [
   { group: "Housing", cats: ["rent", "mortgage", "utilities", "home_reno", "home_ins", "hoa"] },
   { group: "Food", cats: ["groceries", "dining_out", "fast_food", "coffee", "drinks"] },
-  { group: "Transport", cats: ["fuel", "car_ins", "car_maint", "car_registration", "parking", "transit", "ride_share"] },
+  { group: "Transport", cats: ["fuel", "car_ins", "car_maint", "car_registration", "parking", "transit", "taxi", "tolls"] },
   { group: "Personal", cats: ["clothing", "grooming", "fitness"] },
   { group: "Subscriptions", cats: ["subs_stream", "subs_software", "subs_gaming", "news"] },
   { group: "Health", cats: ["doctors", "pharmacy", "dental", "vision"] },

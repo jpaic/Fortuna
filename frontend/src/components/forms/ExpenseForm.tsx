@@ -39,7 +39,8 @@ const CATEGORY_GROUPS: { label: string; options: { value: string; label: string 
       { value: "car_registration", label: "Car registration" },
       { value: "parking", label: "Parking" },
       { value: "transit", label: "Public transit" },
-      { value: "ride_share", label: "Ride share / Taxi" },
+      { value: "taxi", label: "Taxi" },
+      { value: "tolls", label: "Tolls" },
     ],
   },
   {
