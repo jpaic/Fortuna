@@ -26,7 +26,8 @@ fortuna/
 │   ├── investments/       investments CRUD
 │   ├── income/            income CRUD
 │   ├── expenses/          expenses CRUD
-│   ├── analytics/         dashboard summary aggregation
+│   ├── analytics/         dashboard summary, cashflow history sync
+│   ├── recurring/         recurring processor, period scheduling
 │   └── utils/             JWT, generic CRUD router
 │
 └── database/
