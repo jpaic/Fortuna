@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import type { Income as IncomeEntry, Asset } from "../types";
 import { Modal } from "../components/ui/Modal";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { MonthPicker } from "../components/ui/MonthPicker";
 import { IncomeForm } from "../components/forms/IncomeForm";
 import type { IncomeInput } from "../lib/schemas";
@@ -19,6 +20,7 @@ export function Income() {
   const { list, create, update, remove } = useResource<IncomeEntry>("income");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IncomeEntry | null>(null);
+  const [terminating, setTerminating] = useState<IncomeEntry | null>(null);
   const { format, displayCurrency } = useCurrency();
 
   const now = new Date();
@@ -84,8 +86,13 @@ export function Income() {
   }
 
   function handleTerminate(entry: IncomeEntry) {
-    if (!window.confirm(`Terminate "${entry.source}"? It will stop repeating, but its history stays.`)) return;
-    update.mutate({ id: entry.id, payload: { terminatedAt: new Date().toISOString() } });
+    setTerminating(entry);
+  }
+
+  function confirmTerminate() {
+    if (!terminating) return;
+    update.mutate({ id: terminating.id, payload: { terminatedAt: new Date().toISOString() } });
+    setTerminating(null);
   }
 
   function handleReactivate(entry: IncomeEntry) {
@@ -250,6 +257,15 @@ export function Income() {
           />
         </Modal>
       )}
+
+      <ConfirmDialog
+        open={!!terminating}
+        title="Terminate recurring income"
+        message={`Stop "${terminating?.source}" from repeating? Its history will remain.`}
+        confirmLabel="Terminate"
+        onConfirm={confirmTerminate}
+        onCancel={() => setTerminating(null)}
+      />
     </div>
   );
 }
