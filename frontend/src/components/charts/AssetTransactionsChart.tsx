@@ -44,6 +44,60 @@ const sym = (c: string) =>
   new Intl.NumberFormat(undefined, { style: "currency", currency: c, minimumFractionDigits: 0, maximumFractionDigits: 0 })
     .formatToParts(0).find((p) => p.type === "currency")?.value ?? c;
 
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function fireDates(
+  dateStr: string,
+  frequency: string,
+  dayOfPeriod: number | undefined,
+  terminatedAt: string | null | undefined,
+  windowStart: Date,
+  windowEnd: Date,
+): string[] {
+  if (frequency === "one_time") {
+    const d = dateStr.slice(0, 10);
+    return d >= toDateStr(windowStart) && d <= toDateStr(windowEnd) ? [d] : [];
+  }
+  const start = new Date(dateStr + "T00:00:00");
+  const terminated = terminatedAt ? new Date(terminatedAt) : null;
+  const results: string[] = [];
+  const startBound = toDateStr(windowStart);
+  const endBound = toDateStr(windowEnd);
+
+  if (frequency === "weekly" || frequency === "biweekly") {
+    const step = frequency === "weekly" ? 7 : 14;
+    const cursor = new Date(start);
+    while (cursor <= windowEnd) {
+      if (!terminated || cursor <= terminated) {
+        const iso = toDateStr(cursor);
+        if (iso >= startBound && iso <= endBound) results.push(iso);
+      }
+      cursor.setDate(cursor.getDate() + step);
+    }
+  } else {
+    const dop = Math.max(1, dayOfPeriod ?? 1);
+    const monthStep = frequency === "quarterly" ? 3 : frequency === "semi_annual" ? 6 : frequency === "yearly" ? 12 : 1;
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    const maxCursor = new Date(windowEnd);
+    maxCursor.setMonth(maxCursor.getMonth() + monthStep);
+    while (cursor <= maxCursor) {
+      const year = cursor.getFullYear();
+      const month = cursor.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const scheduledDay = Math.min(dop, daysInMonth);
+      const scheduledDate = new Date(year, month, scheduledDay);
+      if (scheduledDate >= start && (!terminated || scheduledDate <= terminated)) {
+        const iso = toDateStr(scheduledDate);
+        if (iso >= startBound && iso <= endBound) results.push(iso);
+      }
+      cursor.setMonth(cursor.getMonth() + monthStep);
+    }
+  }
+  return results;
+}
+
 function WaterfallTooltip({ active, payload, currency }: { active?: boolean; payload?: { payload: WaterfallPoint }[]; currency: string }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
@@ -147,15 +201,17 @@ export function AssetTransactionsChart({ assets, format, convert, displayCurrenc
     if (expenses) {
       for (const e of expenses) {
         const eid = (e as unknown as Record<string, unknown>).assetId ?? (e as unknown as Record<string, unknown>).asset_id;
-        const day = String(e.date).slice(0, 10);
-        if (eid === selectedId) addEvent(day, convert(e.amount, e.currency), "out");
+        if (eid !== selectedId) continue;
+        const dates = fireDates(e.date, e.frequency, e.dayOfPeriod, e.terminatedAt, thirtyDaysAgo, now);
+        for (const day of dates) addEvent(day, convert(e.amount, e.currency), "out");
       }
     }
     if (incomes) {
       for (const i of incomes) {
         const iid = (i as unknown as Record<string, unknown>).assetId ?? (i as unknown as Record<string, unknown>).asset_id;
-        const day = String(i.date).slice(0, 10);
-        if (iid === selectedId) addEvent(day, convert(i.amount, i.currency), "in");
+        if (iid !== selectedId) continue;
+        const dates = fireDates(i.date, i.frequency, i.dayOfPeriod, i.terminatedAt, thirtyDaysAgo, now);
+        for (const day of dates) addEvent(day, convert(i.amount, i.currency), "in");
       }
     }
     if (transfers) {
