@@ -33,7 +33,7 @@ export function IncomeCharts({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const monthly = useMemo(
-    () => entries.filter((e) => monthKey(e.date) === mk),
+    () => entries.filter((e) => e.frequency === "one_time" && monthKey(e.date) === mk),
     [entries, mk]
   );
 
@@ -41,8 +41,17 @@ export function IncomeCharts({
     const out: Income[] = [];
     for (const e of entries) {
       if (e.frequency === "one_time") continue;
-      if (monthKey(e.date) > mk) continue;
+      const startMk = monthKey(e.date);
+      if (startMk > mk) continue;
       if (e.terminatedAt && monthKey(e.terminatedAt) < mk) continue;
+      if (mk === startMk) {
+        const dayOfPeriod = e.dayOfPeriod ?? 1;
+        const d = new Date(e.date);
+        const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        const scheduledDay = Math.min(Math.max(1, dayOfPeriod), daysInMonth);
+        const scheduledDate = new Date(d.getFullYear(), d.getMonth(), scheduledDay);
+        if (d > scheduledDate) continue;
+      }
       out.push(e);
     }
     return out;

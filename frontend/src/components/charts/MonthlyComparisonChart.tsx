@@ -9,6 +9,7 @@ interface EntryLike {
   amount: number;
   currency: string;
   frequency?: string | null;
+  dayOfPeriod?: number | null;
   terminatedAt?: string | null;
 }
 
@@ -118,12 +119,20 @@ export function MonthlyComparisonChart({
     for (const e of entries) {
       const amt = convert(e.amount, e.currency);
       if (isRecurring(e.frequency)) {
-        // Recurring entries persist for every month from their inception
-        // (or up to their termination month if terminated).
         const startMonth = monthKeyOf(e.date);
         const termMonth = e.terminatedAt ? monthKeyOf(e.terminatedAt) : null;
+        const dayOfPeriod = e.dayOfPeriod ?? 1;
+        const startDate = new Date(e.date);
+        const daysInStartMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+        const scheduledDay = Math.min(Math.max(1, dayOfPeriod), daysInStartMonth);
+        const scheduledDate = new Date(startDate.getFullYear(), startDate.getMonth(), scheduledDay);
+        let firstMonth = startMonth;
+        if (startDate > scheduledDate) {
+          const next = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1);
+          firstMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
+        }
         for (const mk of months) {
-          if (mk < startMonth) continue;
+          if (mk < firstMonth) continue;
           if (termMonth && mk > termMonth) continue;
           const b = bucket(mk);
           b.total += amt;
