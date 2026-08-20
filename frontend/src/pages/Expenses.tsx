@@ -21,6 +21,7 @@ export function Expenses() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ExpenseEntry | null>(null);
   const [terminating, setTerminating] = useState<ExpenseEntry | null>(null);
+  const [reactivating, setReactivating] = useState<ExpenseEntry | null>(null);
   const { format, displayCurrency } = useCurrency();
 
   const now = new Date();
@@ -96,7 +97,13 @@ export function Expenses() {
   }
 
   function handleReactivate(entry: ExpenseEntry) {
-    update.mutate({ id: entry.id, payload: { terminatedAt: null } });
+    setReactivating(entry);
+  }
+
+  function confirmReactivate() {
+    if (!reactivating) return;
+    update.mutate({ id: reactivating.id, payload: { terminatedAt: null } });
+    setReactivating(null);
   }
 
   return (
@@ -265,6 +272,15 @@ export function Expenses() {
         confirmLabel="Terminate"
         onConfirm={confirmTerminate}
         onCancel={() => setTerminating(null)}
+      />
+
+      <ConfirmDialog
+        open={!!reactivating}
+        title="Reactivate recurring expense"
+        message={`Resume "${reactivating?.merchant ?? reactivating?.category}" as a recurring expense?`}
+        confirmLabel="Reactivate"
+        onConfirm={confirmReactivate}
+        onCancel={() => setReactivating(null)}
       />
     </div>
   );

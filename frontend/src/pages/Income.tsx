@@ -21,6 +21,7 @@ export function Income() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<IncomeEntry | null>(null);
   const [terminating, setTerminating] = useState<IncomeEntry | null>(null);
+  const [reactivating, setReactivating] = useState<IncomeEntry | null>(null);
   const { format, displayCurrency } = useCurrency();
 
   const now = new Date();
@@ -96,7 +97,13 @@ export function Income() {
   }
 
   function handleReactivate(entry: IncomeEntry) {
-    update.mutate({ id: entry.id, payload: { terminatedAt: null } });
+    setReactivating(entry);
+  }
+
+  function confirmReactivate() {
+    if (!reactivating) return;
+    update.mutate({ id: reactivating.id, payload: { terminatedAt: null } });
+    setReactivating(null);
   }
 
   return (
@@ -265,6 +272,15 @@ export function Income() {
         confirmLabel="Terminate"
         onConfirm={confirmTerminate}
         onCancel={() => setTerminating(null)}
+      />
+
+      <ConfirmDialog
+        open={!!reactivating}
+        title="Reactivate recurring income"
+        message={`Resume "${reactivating?.source}" as a recurring income?`}
+        confirmLabel="Reactivate"
+        onConfirm={confirmReactivate}
+        onCancel={() => setReactivating(null)}
       />
     </div>
   );
