@@ -65,6 +65,14 @@ export function InvestmentPerformance({ data }: { data: Investment[] }) {
       currency: inv.currency,
     }));
 
+  const [min, max] = chartData.reduce(
+    (acc, e) => [Math.min(acc[0], e.pnl), Math.max(acc[1], e.pnl)],
+    [Infinity, -Infinity],
+  );
+  const range = max - min || 1;
+  const pad = range * 0.15;
+  const xDomain: [number, number] = [min - pad, max + pad];
+
   return (
     <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 48 + 40)}>
       <BarChart
@@ -75,6 +83,7 @@ export function InvestmentPerformance({ data }: { data: Investment[] }) {
         <CartesianGrid stroke="#1e293b" horizontal={false} />
         <XAxis
           type="number"
+          domain={xDomain}
           stroke="#64748b"
           tick={{ fill: "#94a3b8", fontSize: 12 }}
           tickLine={false}
