@@ -5,6 +5,7 @@ import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "../assets/helpers.js";
 import { getRates, convert } from "../utils/currency.js";
 import { syncCashflowForEntry } from "../analytics/cashflowSync.js";
+import { processRecurring } from "../recurring/processor.js";
 
 const category = z.enum([
   "rent", "mortgage", "utilities", "home_reno", "home_ins", "hoa",
@@ -100,5 +101,9 @@ export const expensesRouter = createCrudRouter({
       }
     } catch (e) { console.error("adjustAssetFromRow failed:", e); }
     try { await syncCashflowForEntry(userId, "expenses", row); } catch (e) { console.error("syncCashflowForEntry failed:", e); }
+    try {
+      const freq = row?.frequency as string | undefined;
+      if (freq && freq !== "one_time") processRecurring().catch(() => {});
+    } catch { /* fire-and-forget */ }
   },
 });
