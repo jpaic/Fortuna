@@ -2,6 +2,7 @@ import { query, queryOne } from "../db/pool.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "../assets/helpers.js";
 import { recordRecurringCashflow } from "../analytics/cashflowSync.js";
+import { getRates, convert } from "../utils/currency.js";
 import { toDateStr, periodKey, isDue, startOfPeriod, firstEligiblePeriod } from "./period.js";
 
 async function processTable(tableName: "expenses" | "income") {
@@ -59,22 +60,25 @@ async function processTable(tableName: "expenses" | "income") {
     if (amount <= 0) continue;
 
     // Get the asset
-    const asset = await queryOne<{ id: string; current_value: string }>(
-      `SELECT id, current_value FROM assets WHERE id = $1 AND user_id = $2`,
+    const asset = await queryOne<{ id: string; current_value: string; currency: string }>(
+      `SELECT id, current_value, currency FROM assets WHERE id = $1 AND user_id = $2`,
       [row.asset_id, row.user_id]
     );
     if (!asset) continue;
 
     const currentVal = Number(asset.current_value);
+    const assetCurrency = asset.currency ?? "EUR";
+    const rates = await getRates(assetCurrency);
+    const converted = convert(amount, row.currency, assetCurrency, rates);
 
     if (tableName === "expenses") {
       // Deduct from asset
-      const newVal = Math.max(0, currentVal - amount);
+      const newVal = Math.max(0, currentVal - converted);
       await query(`UPDATE assets SET current_value = $1 WHERE id = $2`, [newVal, asset.id]);
       await upsertAssetHistory(row.user_id, { id: asset.id, current_value: newVal });
     } else {
       // Add to asset
-      const newVal = currentVal + amount;
+      const newVal = currentVal + converted;
       await query(`UPDATE assets SET current_value = $1 WHERE id = $2`, [newVal, asset.id]);
       await upsertAssetHistory(row.user_id, { id: asset.id, current_value: newVal });
     }
