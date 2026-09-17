@@ -59,7 +59,7 @@ const CATEGORY_GROUPS: { label: string; options: { value: string; label: string 
       { value: "subs_software", label: "Software / Apps" },
       { value: "subs_gaming", label: "Gaming" },
       { value: "news", label: "News / Magazines" },
-      { value: "phone_payment", label: "Phone / Postpaid" },
+      { value: "phone_bill", label: "Phone bill" },
     ],
   },
   {

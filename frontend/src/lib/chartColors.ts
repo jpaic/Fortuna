@@ -55,7 +55,7 @@ const EXPENSE_ORDER = [
   "groceries", "dining_out", "fast_food", "coffee", "drinks",
   "fuel", "car_ins", "car_maint", "car_registration", "car_wash", "parking", "transit", "taxi", "tolls",
   "clothing", "grooming", "fitness",
-  "subs_stream", "subs_software", "subs_gaming", "news", "phone_payment",
+  "subs_stream", "subs_software", "subs_gaming", "news", "phone_bill",
   "doctors", "pharmacy", "dental", "vision",
   "tuition_fees", "books", "courses",
   "kids", "eldercare",
