@@ -13,7 +13,7 @@ const EXPENSE_GROUPS: { group: string; cats: string[] }[] = [
   { group: "Food", cats: ["groceries", "dining_out", "fast_food", "coffee", "drinks"] },
   { group: "Transport", cats: ["fuel", "car_ins", "car_maint", "car_registration", "car_wash", "parking", "transit", "taxi", "tolls"] },
   { group: "Personal", cats: ["clothing", "grooming", "fitness"] },
-  { group: "Subscriptions", cats: ["subs_stream", "subs_software", "subs_gaming", "news"] },
+  { group: "Subscriptions", cats: ["subs_stream", "subs_software", "subs_gaming", "news", "phone_payment"] },
   { group: "Health", cats: ["doctors", "pharmacy", "dental", "vision"] },
   { group: "Education", cats: ["tuition_fees", "books", "courses"] },
   { group: "Family", cats: ["kids", "eldercare"] },

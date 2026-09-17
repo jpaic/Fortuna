@@ -31,6 +31,7 @@ const EXPENSE_LABELS: Record<string, string> = {
   subs_software: "Software / Apps",
   subs_gaming: "Gaming",
   news: "News / Magazines",
+  phone_payment: "Phone / Mobile",
   // Health
   doctors: "Doctors / Visits",
   pharmacy: "Pharmacy",
