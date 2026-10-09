@@ -24,6 +24,15 @@ export interface Asset {
   purchaseDate: string;
   notes?: string;
   createdAt: string;
+  // Vehicle details
+  mileageKm?: number;
+  // Real-estate details
+  location?: string;
+  areaM2?: number;
+  yearBuilt?: number;
+  // Valuation
+  valuationMethod?: "auto" | "manual";
+  estimatedAt?: string;
 }
 
 export type AssetCategory =
@@ -32,6 +41,8 @@ export type AssetCategory =
   | "investment"
   | "real_estate"
   | "vehicle"
+  | "jewelry"
+  | "watch"
   | "other";
 
 export interface Investment {

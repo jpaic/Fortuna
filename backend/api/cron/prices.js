@@ -8,6 +8,7 @@ export default async function handler(req, res) {
   const { query } = await import("../../dist/db/pool.js");
   const { refreshUserPrices } = await import("../../dist/prices/service.js");
   const { processRecurring } = await import("../../dist/recurring/processor.js");
+  const { refreshUserAssetValuations } = await import("../../dist/assets/valuation.js");
 
   // Refresh investment prices
   const users = await query("SELECT DISTINCT user_id FROM investments WHERE ticker IS NOT NULL AND ticker != ''");
@@ -24,6 +25,20 @@ export default async function handler(req, res) {
     }
   }
 
+  // Refresh auto-estimated asset valuations (vehicles / real estate, ~quarterly)
+  const valUsers = await query(
+    "SELECT DISTINCT user_id FROM assets WHERE category IN ('vehicle','real_estate') AND valuation_method = 'auto'"
+  );
+  let valuations = 0;
+  for (const user of valUsers) {
+    try {
+      const result = await refreshUserAssetValuations(user.user_id);
+      valuations += result.updated;
+    } catch {
+      // valuation failure shouldn't block price refresh
+    }
+  }
+
   // Process recurring expenses/income
   let recurring = { expensesProcessed: 0, incomeProcessed: 0 };
   try {
@@ -32,5 +47,5 @@ export default async function handler(req, res) {
     // Recurring processing failure shouldn't block price refresh
   }
 
-  return res.json({ refreshed, failed, users: users.length, ...recurring });
+  return res.json({ refreshed, failed, users: users.length, valuations, ...recurring });
 }

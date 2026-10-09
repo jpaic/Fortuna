@@ -2,12 +2,13 @@ import { z } from "zod";
 import { createCrudRouter } from "../utils/crudRouter.js";
 import { upsertDailySnapshot } from "../snapshots/helpers.js";
 import { upsertAssetHistory } from "./helpers.js";
+import { revalueAsset } from "./valuation.js";
 import { queryOne, query } from "../db/pool.js";
 import { getRates, convert } from "../utils/currency.js";
 import { requireAuth } from "../middleware/auth.js";
 import { asyncHandler, ApiError } from "../middleware/error.js";
 
-const category = z.enum(["cash", "bank", "real_estate", "vehicle", "other"]);
+const category = z.enum(["cash", "bank", "real_estate", "vehicle", "jewelry", "watch", "other"]);
 
 const createBase = z.object({
   name: z.string().min(1),
@@ -21,6 +22,14 @@ const createBase = z.object({
   notes: z.string().optional(),
   liquidity: z.enum(["liquid", "near_liquid", "illiquid"]).optional(),
   payFromAssetId: z.string().uuid().optional(),
+  // Vehicle details
+  mileageKm: z.number().int().min(0).optional(),
+  // Real-estate details
+  location: z.string().optional(),
+  areaM2: z.number().min(0).optional(),
+  yearBuilt: z.number().int().min(0).optional(),
+  // Valuation
+  valuationMethod: z.enum(["auto", "manual"]).optional(),
 });
 
 const createSchema = createBase.refine(
@@ -43,16 +52,32 @@ const columns = {
   currency: "currency",
   purchaseDate: "purchase_date",
   notes: "notes",
+  mileageKm: "mileage_km",
+  location: "location",
+  areaM2: "area_m2",
+  yearBuilt: "year_built",
+  valuationMethod: "valuation_method",
 };
 
 export const assetsRouter = createCrudRouter({
   table: "assets",
   columns,
+  computedColumns: { estimatedAt: "estimated_at" },
   createSchema,
   updateSchema,
   postMutation: async (userId, row, input) => {
     await upsertDailySnapshot(userId);
     await upsertAssetHistory(userId, row);
+
+    // Auto-estimate vehicle / real-estate value based on age + details
+    const rowId = (row as Record<string, unknown>)?.id as string | undefined;
+    if (rowId) {
+      try {
+        await revalueAsset(userId, rowId);
+      } catch (err) {
+        console.error("Asset revaluation failed:", err);
+      }
+    }
 
     const payFromAssetId = (input as Record<string, unknown>)?.payFromAssetId as string | undefined;
     if (!payFromAssetId || !row) return;

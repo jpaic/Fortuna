@@ -4,6 +4,7 @@ import { useResource } from "../hooks/useResource";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { assetDisplayName } from "../lib/assetDisplayName";
+import { RE_LOCATION_LABELS } from "../lib/valuation";
 import type { Asset, Expense, Income } from "../types";
 import { Modal } from "../components/ui/Modal";
 import { AssetForm } from "../components/forms/AssetForm";
@@ -57,7 +58,8 @@ function AssetRow({
   const isCloseAccount = asset.category === "bank" && asset.subCategory === "savings";
   const isNearLiquid = asset.liquidity === "near_liquid";
   const isInvestment = asset.category === "investment";
-  const isSellable = !isInvestment && (asset.category === "real_estate" || asset.category === "vehicle" || asset.category === "other");
+  const isSellable = !isInvestment && (asset.category === "real_estate" || asset.category === "vehicle" || asset.category === "jewelry" || asset.category === "watch" || asset.category === "other");
+  const isAutoValued = (asset.category === "vehicle" || asset.category === "real_estate") && asset.valuationMethod === "auto";
 
   const { data: history } = useQuery<AssetHistoryPoint[]>({
     queryKey: ["asset-history", asset.id],
@@ -167,10 +169,28 @@ function AssetRow({
             : asset.category === "bank" ? "Bank"
             : asset.category === "real_estate" ? "Real Estate"
             : asset.category === "vehicle" ? "Vehicle"
+            : asset.category === "jewelry" ? "Jewelry"
+            : asset.category === "watch" ? "Watch"
             : "Other"}
         </td>
         <td className="px-4 py-3">
-          {format(asset.currentValue, asset.currency)}
+          <div className="flex items-center gap-2">
+            {format(asset.currentValue, asset.currency)}
+            {isAutoValued && (
+              <span
+                className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400"
+                title={[
+                  "Auto-estimated",
+                  asset.category === "vehicle" && asset.mileageKm != null ? `${asset.mileageKm.toLocaleString()} km` : null,
+                  asset.category === "real_estate" && asset.location ? (RE_LOCATION_LABELS[asset.location] ?? asset.location) : null,
+                  asset.category === "real_estate" && asset.areaM2 ? `${asset.areaM2} m²` : null,
+                  asset.estimatedAt ? `updated ${asset.estimatedAt.slice(0, 10)}` : null,
+                ].filter(Boolean).join(" · ")}
+              >
+                Auto
+              </span>
+            )}
+          </div>
         </td>
         <td className="px-4 py-3 w-28 text-right whitespace-nowrap">
           {canExpand && (
@@ -376,7 +396,7 @@ export function Assets() {
     }
   }
 
-  const CATEGORY_ORDER: Record<string, number> = { cash: 0, bank: 1, investment: 2, real_estate: 3, vehicle: 4, other: 5 };
+  const CATEGORY_ORDER: Record<string, number> = { cash: 0, bank: 1, investment: 2, real_estate: 3, vehicle: 4, jewelry: 5, watch: 6, other: 7 };
   const sortAssets = (a: Asset, b: Asset) => {
     const ca = CATEGORY_ORDER[a.category] ?? 9;
     const cb = CATEGORY_ORDER[b.category] ?? 9;
@@ -621,9 +641,11 @@ export function Assets() {
       {showForm && (
         <Modal title={editing ? "Edit asset" : "Add asset"} onClose={closeModal}>
           <AssetForm
+            key={editing?.id ?? "new"}
             onSubmit={handleSubmit}
             isSubmitting={create.isPending || update.isPending}
             displayCurrency={displayCurrency}
+            displayFormat={format}
             defaultValues={editing ? {
               name: editing.name,
               category: editing.category,
@@ -635,6 +657,11 @@ export function Assets() {
               currency: editing.currency,
               purchaseDate: editing.purchaseDate?.slice(0, 10),
               notes: editing.notes,
+              mileageKm: editing.mileageKm,
+              location: editing.location,
+              areaM2: editing.areaM2,
+              yearBuilt: editing.yearBuilt,
+              valuationMethod: editing.valuationMethod ?? "auto",
             } : undefined}
           />
         </Modal>

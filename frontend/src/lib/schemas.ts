@@ -25,7 +25,7 @@ export const registerSchema = z
 
 export const assetSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  category: z.enum(["cash", "bank", "investment", "real_estate", "vehicle", "other"]),
+  category: z.enum(["cash", "bank", "investment", "real_estate", "vehicle", "jewelry", "watch", "other"]),
   bankName: z.string().optional(),
   subCategory: z.string().optional(),
   liquidity: z.enum(["liquid", "near_liquid", "illiquid"]).optional(),
@@ -35,6 +35,11 @@ export const assetSchema = z.object({
   purchaseDate: z.string().min(1),
   notes: z.string().optional(),
   payFromAssetId: z.string().optional(),
+  mileageKm: z.coerce.number().int().min(0).optional(),
+  location: z.string().optional(),
+  areaM2: z.coerce.number().min(0).optional(),
+  yearBuilt: z.coerce.number().int().min(0).optional(),
+  valuationMethod: z.enum(["auto", "manual"]).optional(),
 }).refine(
   (data) => data.category !== "bank" || (data.bankName && data.bankName.length > 0),
   { message: "Bank name is required for bank accounts", path: ["bankName"] }
