@@ -494,6 +494,16 @@ export function Assets() {
                 </tr>
               )}
             </tbody>
+            {liquidAssets.length > 0 && (
+              <tfoot className="border-t border-slate-700 bg-slate-900/40">
+                <tr className="text-slate-300">
+                  <td className="px-4 py-3 font-medium">Total</td>
+                  <td />
+                  <td className="px-4 py-3 font-medium">{format(liquidTotal, displayCurrency)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
@@ -536,6 +546,16 @@ export function Assets() {
                 </tr>
               )}
             </tbody>
+            {nearLiquidAssets.length > 0 && (
+              <tfoot className="border-t border-slate-700 bg-slate-900/40">
+                <tr className="text-slate-300">
+                  <td className="px-4 py-3 font-medium">Total</td>
+                  <td />
+                  <td className="px-4 py-3 font-medium">{format(nearLiquidTotal, displayCurrency)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
@@ -578,6 +598,16 @@ export function Assets() {
                 </tr>
               )}
             </tbody>
+            {nonLiquidAssets.length > 0 && (
+              <tfoot className="border-t border-slate-700 bg-slate-900/40">
+                <tr className="text-slate-300">
+                  <td className="px-4 py-3 font-medium">Total</td>
+                  <td />
+                  <td className="px-4 py-3 font-medium">{format(nonLiquidTotal, displayCurrency)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
