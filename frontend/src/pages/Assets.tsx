@@ -181,6 +181,8 @@ function AssetRow({
                 className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-400"
                 title={[
                   "Auto-estimated",
+                  asset.category === "vehicle" && asset.manufactureYear != null ? `${asset.manufactureYear}` : null,
+                  asset.category === "vehicle" && asset.engineCc != null ? `${asset.engineCc} cc` : null,
                   asset.category === "vehicle" && asset.mileageKm != null ? `${asset.mileageKm.toLocaleString()} km` : null,
                   asset.category === "real_estate" && asset.location ? (RE_LOCATION_LABELS[asset.location] ?? asset.location) : null,
                   asset.category === "real_estate" && asset.areaM2 ? `${asset.areaM2} m²` : null,
@@ -376,6 +378,7 @@ export function Assets() {
   const [closeAccount, setCloseAccount] = useState(false);
   const [nearLiquidAsset, setNearLiquidAsset] = useState<Asset | null>(null);
   const [sellingAsset, setSellingAsset] = useState<Asset | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   function openTransfer(asset: Asset, isClose = false) {
     setTransferring(asset);
@@ -439,19 +442,30 @@ export function Assets() {
   );
 
   async function handleSubmit(data: AssetInput) {
-    if (editing) {
-      const payload = editing.liquidity === "liquid"
-        ? { ...data, purchaseValue: editing.purchaseValue }
-        : data;
-      await update.mutateAsync({ id: editing.id, payload });
-    } else {
-      await create.mutateAsync(data);
+    setFormError(null);
+    try {
+      if (editing) {
+        const payload = editing.liquidity === "liquid"
+          ? { ...data, purchaseValue: editing.purchaseValue }
+          : data;
+        await update.mutateAsync({ id: editing.id, payload });
+      } else {
+        await create.mutateAsync(data);
+      }
+      setShowForm(false);
+      setEditing(null);
+    } catch (err) {
+      const e = err as { response?: { data?: { error?: string; message?: string } } };
+      const msg =
+        e.response?.data?.error ??
+        e.response?.data?.message ??
+        "Could not save the asset. Please check the values and try again.";
+      setFormError(msg);
     }
-    setShowForm(false);
-    setEditing(null);
   }
 
   function openEdit(asset: Asset) {
+    setFormError(null);
     setEditing(asset);
     setShowForm(true);
   }
@@ -459,6 +473,7 @@ export function Assets() {
   function closeModal() {
     setShowForm(false);
     setEditing(null);
+    setFormError(null);
   }
 
   return (
@@ -469,7 +484,7 @@ export function Assets() {
           <p className="text-sm text-slate-400">Everything you own.</p>
         </div>
         <button
-          onClick={() => { setEditing(null); setShowForm(true); }}
+          onClick={() => { setFormError(null); setEditing(null); setShowForm(true); }}
           className="flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-emerald-400"
         >
           <Plus size={16} /> Add asset
@@ -646,6 +661,7 @@ export function Assets() {
             isSubmitting={create.isPending || update.isPending}
             displayCurrency={displayCurrency}
             displayFormat={format}
+            submitError={formError}
             defaultValues={editing ? {
               name: editing.name,
               category: editing.category,
@@ -658,6 +674,8 @@ export function Assets() {
               purchaseDate: editing.purchaseDate?.slice(0, 10),
               notes: editing.notes,
               mileageKm: editing.mileageKm,
+              manufactureYear: editing.manufactureYear,
+              engineCc: editing.engineCc,
               location: editing.location,
               areaM2: editing.areaM2,
               yearBuilt: editing.yearBuilt,

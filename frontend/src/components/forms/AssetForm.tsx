@@ -52,19 +52,21 @@ export function AssetForm({
   isSubmitting,
   displayCurrency,
   displayFormat,
+  submitError,
 }: {
   defaultValues?: Partial<AssetInput>;
   onSubmit: (data: AssetInput) => void;
   isSubmitting?: boolean;
   displayCurrency?: string;
   displayFormat?: (value: number, currency: string) => string;
+  submitError?: string | null;
 }) {
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    formState: { errors },
+    formState: { errors, isSubmitted },
   } = useForm<AssetFormValues, unknown, AssetInput>({
     resolver: zodResolver(assetSchema),
     defaultValues: { currency: displayCurrency ?? "EUR", valuationMethod: "auto", ...defaultValues },
@@ -79,6 +81,7 @@ export function AssetForm({
   const purchaseValue = watch("purchaseValue");
   const purchaseDate = watch("purchaseDate");
   const mileageKm = watch("mileageKm");
+  const manufactureYear = watch("manufactureYear");
   const location = watch("location");
   const valuationMethod = watch("valuationMethod") ?? "auto";
   const currency = watch("currency");
@@ -102,9 +105,16 @@ export function AssetForm({
     const value = Number(purchaseValue ?? 0);
     if (value <= 0) return null;
     return isVehicle
-      ? estimateVehicleValue(value, purchaseDate, mileageKm != null ? Number(mileageKm) : null)
+      ? estimateVehicleValue(
+          value,
+          purchaseDate,
+          mileageKm != null ? Number(mileageKm) : null,
+          manufactureYear != null && String(manufactureYear) !== "" ? Number(manufactureYear) : null,
+        )
       : estimateRealEstateValue(value, purchaseDate, location);
-  }, [autoValuable, valuationMethod, purchaseDate, purchaseValue, mileageKm, location, isVehicle]);
+  }, [autoValuable, valuationMethod, purchaseDate, purchaseValue, mileageKm, manufactureYear, location, isVehicle]);
+
+  const visibleErrors = Object.entries(errors).filter(([, e]) => e && (e as { message?: string }).message);
 
   function handleValid(data: Record<string, unknown>) {
     const d = data as Record<string, unknown>;
@@ -126,7 +136,11 @@ export function AssetForm({
     }
 
     // Strip category-irrelevant detail fields so they don't get persisted
-    if (cat !== "vehicle") delete payload.mileageKm;
+    if (cat !== "vehicle") {
+      delete payload.mileageKm;
+      delete payload.manufactureYear;
+      delete payload.engineCc;
+    }
     if (cat !== "real_estate") {
       delete payload.location;
       delete payload.areaM2;
@@ -197,17 +211,42 @@ export function AssetForm({
       )}
 
       {isVehicle && (
-        <div>
-          <label className="mb-1 block text-sm text-slate-400">Mileage (km)</label>
-          <input
-            type="number"
-            step="1"
-            {...register("mileageKm")}
-            className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-            placeholder="e.g. 85000"
-          />
-          <p className="mt-1 text-xs text-slate-500">Used to refine the depreciation estimate</p>
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm text-slate-400">Year of manufacture</label>
+              <input
+                type="number"
+                step="1"
+                {...register("manufactureYear")}
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                placeholder="e.g. 2015"
+              />
+              <p className="mt-1 text-xs text-slate-500">The car's "birth" year (matters for a used car)</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-slate-400">Engine (cc)</label>
+              <input
+                type="number"
+                step="1"
+                {...register("engineCc")}
+                className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+                placeholder="e.g. 1600"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm text-slate-400">Mileage (km)</label>
+            <input
+              type="number"
+              step="1"
+              {...register("mileageKm")}
+              className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
+              placeholder="e.g. 85000"
+            />
+            <p className="mt-1 text-xs text-slate-500">Used to refine the depreciation estimate</p>
+          </div>
+        </>
       )}
 
       {isRealEstate && (
@@ -265,7 +304,7 @@ export function AssetForm({
           {valuationMethod === "auto" && (
             <p className="mt-2 text-xs text-slate-500">
               {isVehicle
-                ? "Estimated from age & mileage, refreshed quarterly."
+                ? "Estimated from the car's age (manufacture year) & mileage, refreshed quarterly."
                 : "Estimated from age & location, refreshed quarterly."}
             </p>
           )}
@@ -329,6 +368,9 @@ export function AssetForm({
             {...register("purchaseDate")}
             className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
           />
+          {errors.purchaseDate && (
+            <p className="mt-1 text-xs text-rose-400">{errors.purchaseDate.message || "Date is required"}</p>
+          )}
         </div>
       </div>
 
@@ -356,6 +398,23 @@ export function AssetForm({
             ))}
           </select>
           <p className="mt-1 text-xs text-slate-500">Deduct purchase cost from a liquid account</p>
+        </div>
+      )}
+
+      {isSubmitted && visibleErrors.length > 0 && (
+        <div className="rounded-lg border border-rose-900/60 bg-rose-950/30 px-3 py-2 text-xs text-rose-400">
+          <p className="font-medium">Please fix the following:</p>
+          <ul className="mt-1 list-disc pl-4">
+            {visibleErrors.map(([key, e]) => (
+              <li key={key}>{(e as { message?: string }).message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {submitError && (
+        <div className="rounded-lg border border-rose-900/60 bg-rose-950/30 px-3 py-2 text-xs text-rose-400">
+          {submitError}
         </div>
       )}
 

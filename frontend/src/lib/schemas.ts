@@ -36,6 +36,8 @@ export const assetSchema = z.object({
   notes: z.string().optional(),
   payFromAssetId: z.string().optional(),
   mileageKm: z.coerce.number().int().min(0).optional(),
+  manufactureYear: z.coerce.number().int().min(1900).max(2100).optional(),
+  engineCc: z.coerce.number().int().min(0).optional(),
   location: z.string().optional(),
   areaM2: z.coerce.number().min(0).optional(),
   yearBuilt: z.coerce.number().int().min(0).optional(),

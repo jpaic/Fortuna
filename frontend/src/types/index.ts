@@ -26,6 +26,8 @@ export interface Asset {
   createdAt: string;
   // Vehicle details
   mileageKm?: number;
+  manufactureYear?: number;
+  engineCc?: number;
   // Real-estate details
   location?: string;
   areaM2?: number;

@@ -9,56 +9,90 @@ interface AssetRow {
   purchase_value: string;
   purchase_date: string;
   mileage_km: number | null;
+  manufacture_year: number | null;
   location: string | null;
   valuation_method: string;
   estimated_at: string | null;
 }
 
-// ── Vehicle depreciation curve ──────────────────────────────────────────────
-// Industry-standard used-car depreciation: steep first years, flattening later.
-const VEHICLE_DEPRECIATION = [
-  0.18, // year 1:  -18%
-  0.15, // year 2:  -15%
-  0.12, // year 3:  -12%
-  0.10, // year 4:  -10%
-  0.08, // year 5+: -8% per year
+const YEAR_MS = 365.25 * 24 * 3600 * 1000;
+
+// ── Vehicle depreciation (retention of *new* price by age) ──────────────────
+// Saturating table (age in years -> fraction of new price retained). Non-
+// exponential on purpose so a car's manufacture year genuinely affects value.
+const RETENTION_TABLE: [number, number][] = [
+  [0, 1.0],
+  [1, 0.82],
+  [2, 0.71],
+  [3, 0.62],
+  [4, 0.55],
+  [5, 0.49],
+  [6, 0.44],
+  [7, 0.4],
+  [8, 0.36],
+  [9, 0.33],
+  [10, 0.3],
+  [12, 0.25],
+  [15, 0.19],
+  [20, 0.12],
+  [30, 0.08],
 ];
 
-const MAX_DEPRECIATION = 0.85; // cap: never below 15% of purchase
 const EXPECTED_ANNUAL_KM = 15_000;
-const EXCESS_KM_PENALTY = 0.02; // +2% depreciation per 20 000 km over expected
+const EXCESS_KM_PENALTY = 0.02; // +2% per step over expected
 const EXCESS_KM_STEP = 20_000;
 const MAX_EXCESS_PENALTY = 0.15;
+
+function vehicleRetention(ageYears: number): number {
+  if (ageYears <= 0) return 1;
+  const table = RETENTION_TABLE;
+  const last = table[table.length - 1];
+  if (ageYears >= last[0]) return last[1];
+  for (let i = 0; i < table.length - 1; i++) {
+    const [a0, r0] = table[i];
+    const [a1, r1] = table[i + 1];
+    if (ageYears >= a0 && ageYears <= a1) {
+      const t = (ageYears - a0) / (a1 - a0);
+      return r0 + (r1 - r0) * t;
+    }
+  }
+  return last[1];
+}
 
 export function estimateVehicle(
   purchaseValue: number,
   purchaseDate: Date,
   mileageKm: number | null,
+  manufactureYear: number | null,
 ): number {
-  const now = new Date();
-  const yearsOwned =
-    (now.getTime() - purchaseDate.getTime()) / (365.25 * 24 * 3600 * 1000);
-  if (yearsOwned <= 0) return purchaseValue;
+  if (purchaseValue <= 0) return purchaseValue;
+  const nowMs = Date.now();
+  const boughtMs = purchaseDate.getTime();
+  if (isNaN(boughtMs)) return purchaseValue;
 
-  let depreciation = 0;
-  const fullYears = Math.floor(yearsOwned);
-  for (let i = 0; i < fullYears; i++) {
-    depreciation += VEHICLE_DEPRECIATION[Math.min(i, 4)];
-  }
-  // Partial current year
-  const partial = yearsOwned - fullYears;
-  depreciation += VEHICLE_DEPRECIATION[Math.min(fullYears, 4)] * partial;
+  const hasYear = manufactureYear != null && manufactureYear > 1900;
+  const madeMs = hasYear ? Date.UTC(manufactureYear, 0, 1) : null;
 
-  // Mileage penalty
+  const ageNow = hasYear
+    ? (nowMs - (madeMs as number)) / YEAR_MS
+    : (nowMs - boughtMs) / YEAR_MS;
+  // If the car was already N years old when bought, only the depreciation
+  // *since* the purchase applies to the price the user actually paid.
+  const ageAtPurchase = hasYear ? Math.max(0, (boughtMs - (madeMs as number)) / YEAR_MS) : 0;
+
+  if (ageNow <= 0) return purchaseValue;
+
+  const ratio = vehicleRetention(ageNow) / vehicleRetention(ageAtPurchase);
+  let value = purchaseValue * ratio;
+
   if (mileageKm != null && mileageKm > 0) {
-    const expected = EXPECTED_ANNUAL_KM * yearsOwned;
+    const expected = EXPECTED_ANNUAL_KM * ageNow;
     const excess = Math.max(0, mileageKm - expected);
     const penalty = Math.min(MAX_EXCESS_PENALTY, (excess / EXCESS_KM_STEP) * EXCESS_KM_PENALTY);
-    depreciation += penalty;
+    value *= 1 - penalty;
   }
 
-  depreciation = Math.min(depreciation, MAX_DEPRECIATION);
-  return Math.round(purchaseValue * (1 - depreciation) * 100) / 100;
+  return Math.round(Math.max(0, value) * 100) / 100;
 }
 
 // ── Real-estate appreciation ────────────────────────────────────────────────
@@ -74,9 +108,8 @@ export function estimateRealEstate(
   purchaseDate: Date,
   location: string | null,
 ): number {
-  const now = new Date();
-  const yearsOwned =
-    (now.getTime() - purchaseDate.getTime()) / (365.25 * 24 * 3600 * 1000);
+  const now = Date.now();
+  const yearsOwned = (now - purchaseDate.getTime()) / YEAR_MS;
   if (yearsOwned <= 0) return purchaseValue;
 
   const rate = RE_APPRECIATION[location ?? "other"] ?? 0.03;
@@ -97,7 +130,7 @@ function estimateFromRow(row: AssetRow): number | null {
   if (isNaN(purchaseDate.getTime())) return null;
 
   return row.category === "vehicle"
-    ? estimateVehicle(purchaseValue, purchaseDate, row.mileage_km)
+    ? estimateVehicle(purchaseValue, purchaseDate, row.mileage_km, row.manufacture_year)
     : estimateRealEstate(purchaseValue, purchaseDate, row.location);
 }
 
@@ -109,7 +142,7 @@ export async function revalueAsset(
 ): Promise<number | null> {
   const rows = await query<AssetRow>(
     `SELECT id, user_id, category, purchase_value, purchase_date,
-            mileage_km, location, valuation_method, estimated_at
+            mileage_km, manufacture_year, location, valuation_method, estimated_at
      FROM assets WHERE id = $1 AND user_id = $2`,
     [assetId, userId],
   );
@@ -142,7 +175,7 @@ export async function refreshUserAssetValuations(
 ): Promise<{ updated: number; skipped: number }> {
   const assets = await query<AssetRow>(
     `SELECT id, user_id, category, purchase_value, purchase_date,
-            mileage_km, location, valuation_method, estimated_at
+            mileage_km, manufacture_year, location, valuation_method, estimated_at
      FROM assets
      WHERE user_id = $1
        AND category IN ('vehicle', 'real_estate')

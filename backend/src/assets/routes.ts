@@ -24,6 +24,8 @@ const createBase = z.object({
   payFromAssetId: z.string().uuid().optional(),
   // Vehicle details
   mileageKm: z.number().int().min(0).optional(),
+  manufactureYear: z.number().int().min(1900).max(2100).optional(),
+  engineCc: z.number().int().min(0).optional(),
   // Real-estate details
   location: z.string().optional(),
   areaM2: z.number().min(0).optional(),
@@ -53,6 +55,8 @@ const columns = {
   purchaseDate: "purchase_date",
   notes: "notes",
   mileageKm: "mileage_km",
+  manufactureYear: "manufacture_year",
+  engineCc: "engine_cc",
   location: "location",
   areaM2: "area_m2",
   yearBuilt: "year_built",
