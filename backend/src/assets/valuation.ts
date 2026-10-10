@@ -9,6 +9,7 @@ interface AssetRow {
   purchase_value: string;
   purchase_date: string;
   mileage_km: number | null;
+  mileage_at_purchase_km: number | null;
   manufacture_year: number | null;
   location: string | null;
   valuation_method: string;
@@ -17,10 +18,20 @@ interface AssetRow {
 
 const YEAR_MS = 365.25 * 24 * 3600 * 1000;
 
-// ── Vehicle depreciation (retention of *new* price by age) ──────────────────
-// Saturating table (age in years -> fraction of new price retained). Non-
-// exponential on purpose so a car's manufacture year genuinely affects value.
-const RETENTION_TABLE: [number, number][] = [
+// ── Vehicle depreciation ─────────────────────────────────────────────────────
+// Fraction of the *purchase price* still retained after N years of ownership.
+// Strictly non-increasing, so holding a car longer can only ever lower the
+// estimate.
+//
+// This replaces an earlier ratio model (R(ageNow) / R(ageAtPurchase)) that was
+// anchored on the car's manufacture year. That formulation could not express
+// "older car is worth less": for f(a) = R(a+c)/R(a) to decrease with age, the
+// instantaneous decay rate -R'(a)/R(a) must *increase* with age, but real
+// depreciation curves flatten out. The ratio therefore rose as cars got older,
+// so entering an earlier manufacture year increased the estimate. Anchoring on
+// time owned removes manufacture year from the value entirely; it is still
+// stored and displayed, it just no longer moves the number.
+const OWNERSHIP_RETENTION: [number, number][] = [
   [0, 1.0],
   [1, 0.82],
   [2, 0.71],
@@ -43,16 +54,15 @@ const EXCESS_KM_PENALTY = 0.02; // +2% per step over expected
 const EXCESS_KM_STEP = 20_000;
 const MAX_EXCESS_PENALTY = 0.15;
 
-function vehicleRetention(ageYears: number): number {
-  if (ageYears <= 0) return 1;
-  const table = RETENTION_TABLE;
-  const last = table[table.length - 1];
-  if (ageYears >= last[0]) return last[1];
-  for (let i = 0; i < table.length - 1; i++) {
-    const [a0, r0] = table[i];
-    const [a1, r1] = table[i + 1];
-    if (ageYears >= a0 && ageYears <= a1) {
-      const t = (ageYears - a0) / (a1 - a0);
+function ownershipRetention(yearsOwned: number): number {
+  if (yearsOwned <= 0) return 1;
+  const last = OWNERSHIP_RETENTION[OWNERSHIP_RETENTION.length - 1];
+  if (yearsOwned >= last[0]) return last[1];
+  for (let i = 0; i < OWNERSHIP_RETENTION.length - 1; i++) {
+    const [y0, r0] = OWNERSHIP_RETENTION[i];
+    const [y1, r1] = OWNERSHIP_RETENTION[i + 1];
+    if (yearsOwned >= y0 && yearsOwned <= y1) {
+      const t = (yearsOwned - y0) / (y1 - y0);
       return r0 + (r1 - r0) * t;
     }
   }
@@ -63,31 +73,24 @@ export function estimateVehicle(
   purchaseValue: number,
   purchaseDate: Date,
   mileageKm: number | null,
-  manufactureYear: number | null,
+  mileageAtPurchaseKm: number | null,
 ): number {
   if (purchaseValue <= 0) return purchaseValue;
-  const nowMs = Date.now();
   const boughtMs = purchaseDate.getTime();
   if (isNaN(boughtMs)) return purchaseValue;
 
-  const hasYear = manufactureYear != null && manufactureYear > 1900;
-  const madeMs = hasYear ? Date.UTC(manufactureYear, 0, 1) : null;
+  const yearsOwned = (Date.now() - boughtMs) / YEAR_MS;
+  if (yearsOwned <= 0) return purchaseValue;
 
-  const ageNow = hasYear
-    ? (nowMs - (madeMs as number)) / YEAR_MS
-    : (nowMs - boughtMs) / YEAR_MS;
-  // If the car was already N years old when bought, only the depreciation
-  // *since* the purchase applies to the price the user actually paid.
-  const ageAtPurchase = hasYear ? Math.max(0, (boughtMs - (madeMs as number)) / YEAR_MS) : 0;
+  let value = purchaseValue * ownershipRetention(yearsOwned);
 
-  if (ageNow <= 0) return purchaseValue;
-
-  const ratio = vehicleRetention(ageNow) / vehicleRetention(ageAtPurchase);
-  let value = purchaseValue * ratio;
-
-  if (mileageKm != null && mileageKm > 0) {
-    const expected = EXPECTED_ANNUAL_KM * ageNow;
-    const excess = Math.max(0, mileageKm - expected);
+  // Only the distance driven since purchase counts against you. Both readings
+  // are required: without the purchase odometer we cannot tell how much of the
+  // current reading is yours, so the adjustment is skipped rather than guessed.
+  if (mileageKm != null && mileageAtPurchaseKm != null) {
+    const driven = Math.max(0, mileageKm - mileageAtPurchaseKm);
+    const expected = EXPECTED_ANNUAL_KM * yearsOwned;
+    const excess = Math.max(0, driven - expected);
     const penalty = Math.min(MAX_EXCESS_PENALTY, (excess / EXCESS_KM_STEP) * EXCESS_KM_PENALTY);
     value *= 1 - penalty;
   }
@@ -130,7 +133,7 @@ function estimateFromRow(row: AssetRow): number | null {
   if (isNaN(purchaseDate.getTime())) return null;
 
   return row.category === "vehicle"
-    ? estimateVehicle(purchaseValue, purchaseDate, row.mileage_km, row.manufacture_year)
+    ? estimateVehicle(purchaseValue, purchaseDate, row.mileage_km, row.mileage_at_purchase_km)
     : estimateRealEstate(purchaseValue, purchaseDate, row.location);
 }
 
@@ -142,7 +145,8 @@ export async function revalueAsset(
 ): Promise<number | null> {
   const rows = await query<AssetRow>(
     `SELECT id, user_id, category, purchase_value, purchase_date,
-            mileage_km, manufacture_year, location, valuation_method, estimated_at
+            mileage_km, mileage_at_purchase_km, manufacture_year, location,
+            valuation_method, estimated_at
      FROM assets WHERE id = $1 AND user_id = $2`,
     [assetId, userId],
   );
@@ -175,7 +179,8 @@ export async function refreshUserAssetValuations(
 ): Promise<{ updated: number; skipped: number }> {
   const assets = await query<AssetRow>(
     `SELECT id, user_id, category, purchase_value, purchase_date,
-            mileage_km, manufacture_year, location, valuation_method, estimated_at
+            mileage_km, mileage_at_purchase_km, manufacture_year, location,
+            valuation_method, estimated_at
      FROM assets
      WHERE user_id = $1
        AND category IN ('vehicle', 'real_estate')

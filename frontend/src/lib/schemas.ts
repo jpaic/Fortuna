@@ -76,6 +76,7 @@ export const assetSchema = z.object({
   notes: z.string().nullish(),
   payFromAssetId: z.string().nullish(),
   mileageKm: optionalWholeNumber,
+  mileageAtPurchaseKm: optionalWholeNumber,
   manufactureYear: optionalYear(1900, "Year of manufacture"),
   engineCc: optionalWholeNumber,
   location: z.string().nullish(),
@@ -85,6 +86,15 @@ export const assetSchema = z.object({
 }).refine(
   (data) => data.category !== "bank" || (data.bankName && data.bankName.length > 0),
   { message: "Bank name is required for bank accounts", path: ["bankName"] }
+).refine(
+  (data) =>
+    data.mileageAtPurchaseKm == null ||
+    data.mileageKm == null ||
+    data.mileageAtPurchaseKm <= data.mileageKm,
+  {
+    message: "Odometer at purchase cannot be higher than the current reading",
+    path: ["mileageAtPurchaseKm"],
+  }
 );
 
 export const investmentSchema = z.object({

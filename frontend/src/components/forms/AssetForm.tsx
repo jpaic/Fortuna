@@ -46,7 +46,7 @@ const LIQUIDITY_MAP: Record<string, "liquid" | "near_liquid" | "illiquid"> = {
   other: "illiquid",
 };
 
-const VEHICLE_FIELDS = ["mileageKm", "manufactureYear", "engineCc"] as const;
+const VEHICLE_FIELDS = ["mileageKm", "mileageAtPurchaseKm", "manufactureYear", "engineCc"] as const;
 const REAL_ESTATE_FIELDS = ["location", "areaM2", "yearBuilt"] as const;
 
 // Focus order for the summary, matching how the fields are laid out.
@@ -56,6 +56,7 @@ const ERROR_FIELD_ORDER = [
   "bankName",
   "subCategory",
   "manufactureYear",
+  "mileageAtPurchaseKm",
   "engineCc",
   "mileageKm",
   "location",
@@ -121,7 +122,7 @@ export function AssetForm({
   const purchaseValue = watch("purchaseValue");
   const purchaseDate = watch("purchaseDate");
   const mileageKm = watch("mileageKm");
-  const manufactureYear = watch("manufactureYear");
+  const mileageAtPurchaseKm = watch("mileageAtPurchaseKm");
   const location = watch("location");
   const valuationMethod = watch("valuationMethod") ?? "auto";
   const currency = watch("currency") ?? "EUR";
@@ -159,10 +160,10 @@ export function AssetForm({
           value,
           purchaseDate,
           mileageKm != null ? Number(mileageKm) : null,
-          manufactureYear != null && String(manufactureYear) !== "" ? Number(manufactureYear) : null,
+          mileageAtPurchaseKm != null ? Number(mileageAtPurchaseKm) : null,
         )
       : estimateRealEstateValue(value, purchaseDate, location);
-  }, [autoValuable, valuationMethod, purchaseDate, purchaseValue, mileageKm, manufactureYear, location, isVehicle]);
+  }, [autoValuable, valuationMethod, purchaseDate, purchaseValue, mileageKm, mileageAtPurchaseKm, location, isVehicle]);
 
   const invalidFields = useMemo(
     () =>
@@ -199,16 +200,12 @@ export function AssetForm({
     // Drop fields that don't apply to the category. Use null rather than
     // undefined so clearing a field actually clears the stored value.
     if (cat !== "vehicle") {
-      delete payload.mileageKm;
-      delete payload.manufactureYear;
-      delete payload.engineCc;
+      for (const f of VEHICLE_FIELDS) delete payload[f];
     } else {
       for (const f of VEHICLE_FIELDS) payload[f] = d[f] ?? null;
     }
     if (cat !== "real_estate") {
-      delete payload.location;
-      delete payload.areaM2;
-      delete payload.yearBuilt;
+      for (const f of REAL_ESTATE_FIELDS) delete payload[f];
     } else {
       for (const f of REAL_ESTATE_FIELDS) payload[f] = d[f] ?? null;
     }
@@ -311,21 +308,39 @@ export function AssetForm({
               )}
             </div>
           </div>
-          <div>
-            <label className={labelClass}>Mileage (km)</label>
-            <input
-              type="number"
-              step="1"
-              min={0}
-              {...register("mileageKm")}
-              className={inputClass}
-              placeholder="85000"
-            />
-            {errors.mileageKm ? (
-              <p className={errorClass}>{errors.mileageKm.message}</p>
-            ) : (
-              <p className={hintClass}>Current odometer reading</p>
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Odometer at purchase (km)</label>
+              <input
+                type="number"
+                step="1"
+                min={0}
+                {...register("mileageAtPurchaseKm")}
+                className={inputClass}
+                placeholder="85000"
+              />
+              {errors.mileageAtPurchaseKm ? (
+                <p className={errorClass}>{errors.mileageAtPurchaseKm.message}</p>
+              ) : (
+                <p className={hintClass}>Reading on the day you bought it</p>
+              )}
+            </div>
+            <div>
+              <label className={labelClass}>Mileage (km)</label>
+              <input
+                type="number"
+                step="1"
+                min={0}
+                {...register("mileageKm")}
+                className={inputClass}
+                placeholder="120000"
+              />
+              {errors.mileageKm ? (
+                <p className={errorClass}>{errors.mileageKm.message}</p>
+              ) : (
+                <p className={hintClass}>Current odometer reading</p>
+              )}
+            </div>
           </div>
         </>
       )}

@@ -3,9 +3,19 @@
 
 const YEAR_MS = 365.25 * 24 * 3600 * 1000;
 
-// Saturating retention table (age -> fraction of new price). Keep in sync with
-// backend/src/assets/valuation.ts. Non-exponential so manufacture year matters.
-const RETENTION_TABLE: [number, number][] = [
+// Fraction of the *purchase price* still retained after N years of ownership.
+// Strictly non-increasing, so holding a car longer can only ever lower the
+// estimate. Keep in sync with backend/src/assets/valuation.ts.
+//
+// This replaces an earlier ratio model (R(ageNow) / R(ageAtPurchase)) anchored
+// on the car's manufacture year. That formulation could not express "older car
+// is worth less": for f(a) = R(a+c)/R(a) to decrease with age, the decay rate
+// -R'(a)/R(a) must increase with age, but real depreciation curves flatten. The
+// ratio therefore rose as cars got older, so entering an earlier manufacture
+// year increased the estimate. Anchoring on time owned removes manufacture year
+// from the value; it is still stored and displayed, it just no longer moves the
+// number.
+const OWNERSHIP_RETENTION: [number, number][] = [
   [0, 1.0],
   [1, 0.82],
   [2, 0.71],
@@ -40,16 +50,15 @@ export const RE_LOCATION_LABELS: Record<string, string> = {
   other: "Other / Ostalo",
 };
 
-function vehicleRetention(ageYears: number): number {
-  if (ageYears <= 0) return 1;
-  const table = RETENTION_TABLE;
-  const last = table[table.length - 1];
-  if (ageYears >= last[0]) return last[1];
-  for (let i = 0; i < table.length - 1; i++) {
-    const [a0, r0] = table[i];
-    const [a1, r1] = table[i + 1];
-    if (ageYears >= a0 && ageYears <= a1) {
-      const t = (ageYears - a0) / (a1 - a0);
+function ownershipRetention(yearsOwned: number): number {
+  if (yearsOwned <= 0) return 1;
+  const last = OWNERSHIP_RETENTION[OWNERSHIP_RETENTION.length - 1];
+  if (yearsOwned >= last[0]) return last[1];
+  for (let i = 0; i < OWNERSHIP_RETENTION.length - 1; i++) {
+    const [y0, r0] = OWNERSHIP_RETENTION[i];
+    const [y1, r1] = OWNERSHIP_RETENTION[i + 1];
+    if (yearsOwned >= y0 && yearsOwned <= y1) {
+      const t = (yearsOwned - y0) / (y1 - y0);
       return r0 + (r1 - r0) * t;
     }
   }
@@ -65,26 +74,24 @@ export function estimateVehicleValue(
   purchaseValue: number,
   purchaseDate: string,
   mileageKm?: number | null,
-  manufactureYear?: number | null,
+  mileageAtPurchaseKm?: number | null,
 ): number {
   if (purchaseValue <= 0) return purchaseValue;
   const boughtMs = toMs(purchaseDate);
   if (isNaN(boughtMs)) return purchaseValue;
 
-  const hasYear = manufactureYear != null && manufactureYear > 1900;
-  const madeMs = hasYear ? Date.UTC(manufactureYear as number, 0, 1) : null;
+  const yearsOwned = (Date.now() - boughtMs) / YEAR_MS;
+  if (yearsOwned <= 0) return purchaseValue;
 
-  const nowMs = Date.now();
-  const ageNow = hasYear ? (nowMs - (madeMs as number)) / YEAR_MS : (nowMs - boughtMs) / YEAR_MS;
-  const ageAtPurchase = hasYear ? Math.max(0, (boughtMs - (madeMs as number)) / YEAR_MS) : 0;
+  let value = purchaseValue * ownershipRetention(yearsOwned);
 
-  if (ageNow <= 0) return purchaseValue;
-
-  let value = purchaseValue * (vehicleRetention(ageNow) / vehicleRetention(ageAtPurchase));
-
-  if (mileageKm != null && mileageKm > 0) {
-    const expected = EXPECTED_ANNUAL_KM * ageNow;
-    const excess = Math.max(0, mileageKm - expected);
+  // Only the distance driven since purchase counts against you. Both readings
+  // are required: without the purchase odometer the current reading cannot be
+  // split into "mine" and "previous owner's", so the adjustment is skipped.
+  if (mileageKm != null && mileageAtPurchaseKm != null) {
+    const driven = Math.max(0, mileageKm - mileageAtPurchaseKm);
+    const expected = EXPECTED_ANNUAL_KM * yearsOwned;
+    const excess = Math.max(0, driven - expected);
     value *= 1 - Math.min(MAX_EXCESS_PENALTY, (excess / EXCESS_KM_STEP) * EXCESS_KM_PENALTY);
   }
 

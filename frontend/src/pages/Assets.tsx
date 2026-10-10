@@ -678,6 +678,7 @@ export function Assets() {
                       purchaseDate: editing.purchaseDate?.slice(0, 10),
                       notes: editing.notes,
                       mileageKm: editing.mileageKm,
+                      mileageAtPurchaseKm: editing.mileageAtPurchaseKm,
                       manufactureYear: editing.manufactureYear,
                       engineCc: editing.engineCc,
                       location: editing.location,

@@ -28,6 +28,11 @@ const createBase = z.object({
     .int("Use a whole number")
     .min(0, "Value cannot be negative")
     .nullish(),
+  mileageAtPurchaseKm: z
+    .number({ invalid_type_error: "Enter a number" })
+    .int("Use a whole number")
+    .min(0, "Value cannot be negative")
+    .nullish(),
   manufactureYear: z
     .number({ invalid_type_error: "Enter the year of manufacture" })
     .int("Use a whole year")
@@ -52,10 +57,21 @@ const createBase = z.object({
   valuationMethod: z.enum(["auto", "manual"]).nullish(),
 });
 
-const createSchema = createBase.refine(
-  (data) => data.category !== "bank" || (data.bankName && data.bankName.length > 0),
-  { message: "Bank name is required for bank accounts", path: ["bankName"] }
-);
+const createSchema = createBase
+  .refine(
+    (data) => data.category !== "bank" || (data.bankName && data.bankName.length > 0),
+    { message: "Bank name is required for bank accounts", path: ["bankName"] }
+  )
+  .refine(
+    (data) =>
+      data.mileageAtPurchaseKm == null ||
+      data.mileageKm == null ||
+      data.mileageAtPurchaseKm <= data.mileageKm,
+    {
+      message: "Odometer at purchase cannot be higher than the current reading",
+      path: ["mileageAtPurchaseKm"],
+    }
+  );
 
 const updateSchema = createBase.partial();
 
@@ -73,6 +89,7 @@ const columns = {
   purchaseDate: "purchase_date",
   notes: "notes",
   mileageKm: "mileage_km",
+  mileageAtPurchaseKm: "mileage_at_purchase_km",
   manufactureYear: "manufacture_year",
   engineCc: "engine_cc",
   location: "location",

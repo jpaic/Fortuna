@@ -26,6 +26,7 @@ export interface Asset {
   createdAt: string;
   // Vehicle details
   mileageKm?: number | null;
+  mileageAtPurchaseKm?: number | null;
   manufactureYear?: number | null;
   engineCc?: number | null;
   // Real-estate details
