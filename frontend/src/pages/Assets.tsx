@@ -659,28 +659,35 @@ export function Assets() {
             key={editing?.id ?? "new"}
             onSubmit={handleSubmit}
             isSubmitting={create.isPending || update.isPending}
+            isEditing={!!editing}
             displayCurrency={displayCurrency}
             displayFormat={format}
             submitError={formError}
-            defaultValues={editing ? {
-              name: editing.name,
-              category: editing.category,
-              bankName: editing.bankName,
-              subCategory: editing.subCategory,
-              liquidity: editing.liquidity,
-              purchaseValue: editing.purchaseValue,
-              currentValue: editing.currentValue,
-              currency: editing.currency,
-              purchaseDate: editing.purchaseDate?.slice(0, 10),
-              notes: editing.notes,
-              mileageKm: editing.mileageKm,
-              manufactureYear: editing.manufactureYear,
-              engineCc: editing.engineCc,
-              location: editing.location,
-              areaM2: editing.areaM2,
-              yearBuilt: editing.yearBuilt,
-              valuationMethod: editing.valuationMethod ?? "auto",
-            } : undefined}
+            defaultValues={
+              editing
+                ? Object.fromEntries(
+                    Object.entries({
+                      name: editing.name,
+                      category: editing.category,
+                      bankName: editing.bankName,
+                      subCategory: editing.subCategory,
+                      liquidity: editing.liquidity,
+                      purchaseValue: editing.purchaseValue,
+                      currentValue: editing.currentValue,
+                      currency: editing.currency,
+                      purchaseDate: editing.purchaseDate?.slice(0, 10),
+                      notes: editing.notes,
+                      mileageKm: editing.mileageKm,
+                      manufactureYear: editing.manufactureYear,
+                      engineCc: editing.engineCc,
+                      location: editing.location,
+                      areaM2: editing.areaM2,
+                      yearBuilt: editing.yearBuilt,
+                      valuationMethod: editing.valuationMethod ?? "auto",
+                    }).filter(([, v]) => v !== null && v !== undefined),
+                  )
+                : undefined
+            }
           />
         </Modal>
       )}

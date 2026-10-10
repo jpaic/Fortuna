@@ -11,27 +11,45 @@ import { asyncHandler, ApiError } from "../middleware/error.js";
 const category = z.enum(["cash", "bank", "real_estate", "vehicle", "jewelry", "watch", "other"]);
 
 const createBase = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1, "Name is required"),
   category,
-  bankName: z.string().optional(),
-  subCategory: z.string().optional(),
-  purchaseValue: z.number().min(0),
-  currentValue: z.number().min(0),
-  currency: z.string().length(3).default("EUR"),
-  purchaseDate: z.string(), // ISO date
-  notes: z.string().optional(),
-  liquidity: z.enum(["liquid", "near_liquid", "illiquid"]).optional(),
-  payFromAssetId: z.string().uuid().optional(),
+  bankName: z.string().trim().nullish(),
+  subCategory: z.string().nullish(),
+  purchaseValue: z.number({ invalid_type_error: "Enter an amount" }).min(0, "Amount cannot be negative"),
+  currentValue: z.number({ invalid_type_error: "Enter a number" }).min(0, "Value cannot be negative"),
+  currency: z.string().length(3, "Use a 3-letter currency code").default("EUR"),
+  purchaseDate: z.string().min(1, "Date is required"), // ISO date
+  notes: z.string().nullish(),
+  liquidity: z.enum(["liquid", "near_liquid", "illiquid"]).nullish(),
+  payFromAssetId: z.string().uuid().nullish(),
   // Vehicle details
-  mileageKm: z.number().int().min(0).optional(),
-  manufactureYear: z.number().int().min(1900).max(2100).optional(),
-  engineCc: z.number().int().min(0).optional(),
+  mileageKm: z
+    .number({ invalid_type_error: "Enter a number" })
+    .int("Use a whole number")
+    .min(0, "Value cannot be negative")
+    .nullish(),
+  manufactureYear: z
+    .number({ invalid_type_error: "Enter the year of manufacture" })
+    .int("Use a whole year")
+    .min(1900, "Must be 1900 or later")
+    .max(2100, "Must be 2100 or earlier")
+    .nullish(),
+  engineCc: z
+    .number({ invalid_type_error: "Enter a number" })
+    .int("Use a whole number")
+    .min(0, "Value cannot be negative")
+    .nullish(),
   // Real-estate details
-  location: z.string().optional(),
-  areaM2: z.number().min(0).optional(),
-  yearBuilt: z.number().int().min(0).optional(),
+  location: z.string().nullish(),
+  areaM2: z.number({ invalid_type_error: "Enter a number" }).min(0, "Value cannot be negative").nullish(),
+  yearBuilt: z
+    .number({ invalid_type_error: "Enter the year built" })
+    .int("Use a whole year")
+    .min(1000, "Must be 1000 or later")
+    .max(2100, "Must be 2100 or earlier")
+    .nullish(),
   // Valuation
-  valuationMethod: z.enum(["auto", "manual"]).optional(),
+  valuationMethod: z.enum(["auto", "manual"]).nullish(),
 });
 
 const createSchema = createBase.refine(

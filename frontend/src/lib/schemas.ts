@@ -23,25 +23,65 @@ export const registerSchema = z
     path: ["confirmPassword"],
   });
 
+// Number inputs hand back strings, and cleared inputs hand back "" or null.
+// Map those to undefined so an empty box means "not provided" instead of 0/NaN.
+const blankToUndef = (value: unknown) =>
+  value === null || (typeof value === "string" && value.trim() === "") ? undefined : value;
+
+const requiredAmount = z.preprocess(
+  blankToUndef,
+  z.coerce.number({ error: "Enter an amount" }).min(0, "Amount cannot be negative"),
+);
+
+const optionalAmount = z.preprocess(
+  blankToUndef,
+  z.coerce
+    .number({ error: "Enter a number" })
+    .min(0, "Value cannot be negative")
+    .optional(),
+);
+
+const optionalWholeNumber = z.preprocess(
+  blankToUndef,
+  z.coerce
+    .number({ error: "Enter a number" })
+    .int("Use a whole number")
+    .min(0, "Value cannot be negative")
+    .optional(),
+);
+
+const optionalYear = (min: number, label: string) =>
+  z.preprocess(
+    blankToUndef,
+    z.coerce
+      .number({ error: `Enter ${label.toLowerCase()}` })
+      .int("Use a whole year")
+      .min(min, `Must be ${min} or later`)
+      .max(2100, "Must be 2100 or earlier")
+      .optional(),
+  );
+
 export const assetSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  category: z.enum(["cash", "bank", "investment", "real_estate", "vehicle", "jewelry", "watch", "other"]),
-  bankName: z.string().optional(),
-  subCategory: z.string().optional(),
+  name: z.string().trim().min(1, "Name is required"),
+  category: z.enum(["cash", "bank", "investment", "real_estate", "vehicle", "jewelry", "watch", "other"], {
+    error: "Choose a category",
+  }),
+  bankName: z.string().trim().nullish(),
+  subCategory: z.string().nullish(),
   liquidity: z.enum(["liquid", "near_liquid", "illiquid"]).optional(),
-  purchaseValue: z.coerce.number().min(0),
-  currentValue: z.coerce.number().min(0).optional(),
+  purchaseValue: requiredAmount,
+  currentValue: optionalAmount,
   currency: z.string().length(3, "Use a 3-letter currency code"),
-  purchaseDate: z.string().min(1),
-  notes: z.string().optional(),
-  payFromAssetId: z.string().optional(),
-  mileageKm: z.coerce.number().int().min(0).optional(),
-  manufactureYear: z.coerce.number().int().min(1900).max(2100).optional(),
-  engineCc: z.coerce.number().int().min(0).optional(),
-  location: z.string().optional(),
-  areaM2: z.coerce.number().min(0).optional(),
-  yearBuilt: z.coerce.number().int().min(0).optional(),
-  valuationMethod: z.enum(["auto", "manual"]).optional(),
+  purchaseDate: z.string().min(1, "Date is required"),
+  notes: z.string().nullish(),
+  payFromAssetId: z.string().nullish(),
+  mileageKm: optionalWholeNumber,
+  manufactureYear: optionalYear(1900, "Year of manufacture"),
+  engineCc: optionalWholeNumber,
+  location: z.string().nullish(),
+  areaM2: optionalAmount,
+  yearBuilt: optionalYear(1000, "Year built"),
+  valuationMethod: z.enum(["auto", "manual"], { error: "Choose how the value is worked out" }).nullish(),
 }).refine(
   (data) => data.category !== "bank" || (data.bankName && data.bankName.length > 0),
   { message: "Bank name is required for bank accounts", path: ["bankName"] }

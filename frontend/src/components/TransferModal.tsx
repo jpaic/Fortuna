@@ -3,20 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useCurrency } from "../context/CurrencyContext";
 import { assetDisplayName } from "../lib/assetDisplayName";
-import { CURRENCIES } from "../lib/currencies";
+import { CURRENCIES, currencySymbol } from "../lib/currencies";
 import { Modal } from "./ui/Modal";
 import type { Asset } from "../types";
 
 const inputClass =
   "w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none";
-
-function currencySymbol(c: string) {
-  return (
-    new Intl.NumberFormat(undefined, { style: "currency", currency: c })
-      .formatToParts(0)
-      .find((p) => p.type === "currency")?.value ?? c
-  );
-}
 
 export function TransferModal({
   sourceAsset,

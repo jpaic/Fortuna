@@ -14,7 +14,14 @@ export function errorHandler(
   _next: NextFunction
 ) {
   if (err instanceof ZodError) {
-    return res.status(400).json({ error: "Validation failed", details: err.flatten() });
+    // Surface the first field message so the UI can show something actionable
+    // instead of a bare "Validation failed".
+    const first = err.issues[0];
+    const where = first?.path.length ? `${first.path.join(".")}: ` : "";
+    return res.status(400).json({
+      error: `Validation failed — ${where}${first?.message ?? "check the values and try again"}`,
+      details: err.flatten(),
+    });
   }
 
   if (err instanceof ApiError) {

@@ -14,27 +14,27 @@ export interface Asset {
   userId: string;
   name: string;
   category: AssetCategory;
-  bankName?: string;
-  subCategory?: string;
+  bankName?: string | null;
+  subCategory?: string | null;
   liquidity: "liquid" | "near_liquid" | "illiquid";
   isFavorite: boolean;
   purchaseValue: number;
   currentValue: number;
   currency: string;
   purchaseDate: string;
-  notes?: string;
+  notes?: string | null;
   createdAt: string;
   // Vehicle details
-  mileageKm?: number;
-  manufactureYear?: number;
-  engineCc?: number;
+  mileageKm?: number | null;
+  manufactureYear?: number | null;
+  engineCc?: number | null;
   // Real-estate details
-  location?: string;
-  areaM2?: number;
-  yearBuilt?: number;
+  location?: string | null;
+  areaM2?: number | null;
+  yearBuilt?: number | null;
   // Valuation
-  valuationMethod?: "auto" | "manual";
-  estimatedAt?: string;
+  valuationMethod?: "auto" | "manual" | null;
+  estimatedAt?: string | null;
 }
 
 export type AssetCategory =
