@@ -679,6 +679,7 @@ export function Assets() {
                       notes: editing.notes,
                       mileageKm: editing.mileageKm,
                       mileageAtPurchaseKm: editing.mileageAtPurchaseKm,
+                      fuelType: editing.fuelType,
                       manufactureYear: editing.manufactureYear,
                       engineCc: editing.engineCc,
                       location: editing.location,

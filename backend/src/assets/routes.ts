@@ -33,6 +33,7 @@ const createBase = z.object({
     .int("Use a whole number")
     .min(0, "Value cannot be negative")
     .nullish(),
+  fuelType: z.enum(["petrol", "diesel", "hybrid", "phev", "electric", "lpg"]).nullish(),
   manufactureYear: z
     .number({ invalid_type_error: "Enter the year of manufacture" })
     .int("Use a whole year")
@@ -90,6 +91,7 @@ const columns = {
   notes: "notes",
   mileageKm: "mileage_km",
   mileageAtPurchaseKm: "mileage_at_purchase_km",
+  fuelType: "fuel_type",
   manufactureYear: "manufacture_year",
   engineCc: "engine_cc",
   location: "location",

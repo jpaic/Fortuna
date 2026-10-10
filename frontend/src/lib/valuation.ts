@@ -38,6 +38,19 @@ const EXCESS_KM_PENALTY = 0.02;
 const EXCESS_KM_STEP = 20_000;
 const MAX_EXCESS_PENALTY = 0.15;
 
+// Equivalent-years scaling per powertrain. Derived from Autovista / JD Power
+// residual-value readings for 3-year-old European cars (60,000 km), averaged
+// across published months: petrol 50.5%, hybrid 51.1%, diesel 49.8%,
+// PHEV 44.9%, BEV 38.2%. Keep in sync with backend/src/assets/valuation.ts.
+const FUEL_TIME_FACTOR: Record<string, number> = {
+  petrol: 1.0,
+  diesel: 1.04,
+  hybrid: 0.97,
+  phev: 1.33,
+  electric: 1.81,
+  lpg: 1.15,
+};
+
 export const RE_APPRECIATION: Record<string, number> = {
   beograd: 0.04,
   novi_sad: 0.035,
@@ -75,6 +88,7 @@ export function estimateVehicleValue(
   purchaseDate: string,
   mileageKm?: number | null,
   mileageAtPurchaseKm?: number | null,
+  fuelType?: string | null,
 ): number {
   if (purchaseValue <= 0) return purchaseValue;
   const boughtMs = toMs(purchaseDate);
@@ -83,7 +97,11 @@ export function estimateVehicleValue(
   const yearsOwned = (Date.now() - boughtMs) / YEAR_MS;
   if (yearsOwned <= 0) return purchaseValue;
 
-  let value = purchaseValue * ownershipRetention(yearsOwned);
+  // Unknown or unrecognised powertrain falls back to 1.0, leaving the estimate
+  // exactly as it was before fuel types were recorded.
+  const fuelFactor = (fuelType && FUEL_TIME_FACTOR[fuelType]) || 1.0;
+
+  let value = purchaseValue * ownershipRetention(yearsOwned * fuelFactor);
 
   // Only the distance driven since purchase counts against you. Both readings
   // are required: without the purchase odometer the current reading cannot be

@@ -10,6 +10,7 @@ interface AssetRow {
   purchase_date: string;
   mileage_km: number | null;
   mileage_at_purchase_km: number | null;
+  fuel_type: string | null;
   manufacture_year: number | null;
   location: string | null;
   valuation_method: string;
@@ -54,6 +55,33 @@ const EXCESS_KM_PENALTY = 0.02; // +2% per step over expected
 const EXCESS_KM_STEP = 20_000;
 const MAX_EXCESS_PENALTY = 0.15;
 
+// ── Powertrain ───────────────────────────────────────────────────────────────
+// Retained value differs by powertrain. Autovista / JD Power residual-value
+// readings for 3-year-old European cars (60,000 km), averaged across the
+// published months:
+//
+//   petrol 50.5%   hybrid 51.1%   diesel 49.8%   PHEV 44.9%   BEV 38.2%
+//
+// Expressed as a scaling of *time held* rather than a multiplier on the
+// result: each factor is the number of equivalent years that reproduces that
+// powertrain's residual on our retention curve, so the gap widens the longer
+// the car is kept. A level multiplier would apply once and then flat-line,
+// which is the opposite of how the BEV/PHEV gap behaves.
+//
+// No level premium is applied for the powertrain. It is already inside the
+// price the user paid, so adding it again would double-count it.
+//
+// LPG has no comparable published residual series; its factor is a judgement
+// call rather than a measurement.
+const FUEL_TIME_FACTOR: Record<string, number> = {
+  petrol: 1.0,
+  diesel: 1.04,
+  hybrid: 0.97,
+  phev: 1.33,
+  electric: 1.81,
+  lpg: 1.15,
+};
+
 function ownershipRetention(yearsOwned: number): number {
   if (yearsOwned <= 0) return 1;
   const last = OWNERSHIP_RETENTION[OWNERSHIP_RETENTION.length - 1];
@@ -74,6 +102,7 @@ export function estimateVehicle(
   purchaseDate: Date,
   mileageKm: number | null,
   mileageAtPurchaseKm: number | null,
+  fuelType: string | null,
 ): number {
   if (purchaseValue <= 0) return purchaseValue;
   const boughtMs = purchaseDate.getTime();
@@ -82,7 +111,11 @@ export function estimateVehicle(
   const yearsOwned = (Date.now() - boughtMs) / YEAR_MS;
   if (yearsOwned <= 0) return purchaseValue;
 
-  let value = purchaseValue * ownershipRetention(yearsOwned);
+  // An unknown or unrecognised powertrain falls back to 1.0, which leaves the
+  // estimate exactly as it was before fuel types were recorded.
+  const fuelFactor = (fuelType && FUEL_TIME_FACTOR[fuelType]) || 1.0;
+
+  let value = purchaseValue * ownershipRetention(yearsOwned * fuelFactor);
 
   // Only the distance driven since purchase counts against you. Both readings
   // are required: without the purchase odometer we cannot tell how much of the
@@ -133,7 +166,7 @@ function estimateFromRow(row: AssetRow): number | null {
   if (isNaN(purchaseDate.getTime())) return null;
 
   return row.category === "vehicle"
-    ? estimateVehicle(purchaseValue, purchaseDate, row.mileage_km, row.mileage_at_purchase_km)
+    ? estimateVehicle(purchaseValue, purchaseDate, row.mileage_km, row.mileage_at_purchase_km, row.fuel_type)
     : estimateRealEstate(purchaseValue, purchaseDate, row.location);
 }
 
@@ -145,7 +178,8 @@ export async function revalueAsset(
 ): Promise<number | null> {
   const rows = await query<AssetRow>(
     `SELECT id, user_id, category, purchase_value, purchase_date,
-            mileage_km, mileage_at_purchase_km, manufacture_year, location,
+            mileage_km, mileage_at_purchase_km, fuel_type,
+            manufacture_year, location,
             valuation_method, estimated_at
      FROM assets WHERE id = $1 AND user_id = $2`,
     [assetId, userId],
@@ -179,7 +213,8 @@ export async function refreshUserAssetValuations(
 ): Promise<{ updated: number; skipped: number }> {
   const assets = await query<AssetRow>(
     `SELECT id, user_id, category, purchase_value, purchase_date,
-            mileage_km, mileage_at_purchase_km, manufacture_year, location,
+            mileage_km, mileage_at_purchase_km, fuel_type,
+            manufacture_year, location,
             valuation_method, estimated_at
      FROM assets
      WHERE user_id = $1

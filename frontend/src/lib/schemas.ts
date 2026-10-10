@@ -77,6 +77,7 @@ export const assetSchema = z.object({
   payFromAssetId: z.string().nullish(),
   mileageKm: optionalWholeNumber,
   mileageAtPurchaseKm: optionalWholeNumber,
+  fuelType: z.enum(["petrol", "diesel", "hybrid", "phev", "electric", "lpg"]).nullish(),
   manufactureYear: optionalYear(1900, "Year of manufacture"),
   engineCc: optionalWholeNumber,
   location: z.string().nullish(),

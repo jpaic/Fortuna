@@ -36,6 +36,15 @@ const BANK_SUB_LABELS: Record<string, string> = {
   credit_card: "Credit card",
 };
 
+const FUEL_TYPES = [
+  { value: "petrol", label: "Petrol" },
+  { value: "diesel", label: "Diesel" },
+  { value: "hybrid", label: "Hybrid" },
+  { value: "phev", label: "Plug-in hybrid" },
+  { value: "electric", label: "Electric" },
+  { value: "lpg", label: "LPG / CNG" },
+] as const;
+
 const LIQUIDITY_MAP: Record<string, "liquid" | "near_liquid" | "illiquid"> = {
   cash: "liquid",
   bank: "liquid",
@@ -46,7 +55,7 @@ const LIQUIDITY_MAP: Record<string, "liquid" | "near_liquid" | "illiquid"> = {
   other: "illiquid",
 };
 
-const VEHICLE_FIELDS = ["mileageKm", "mileageAtPurchaseKm", "manufactureYear", "engineCc"] as const;
+const VEHICLE_FIELDS = ["mileageKm", "mileageAtPurchaseKm", "fuelType", "manufactureYear", "engineCc"] as const;
 const REAL_ESTATE_FIELDS = ["location", "areaM2", "yearBuilt"] as const;
 
 // Focus order for the summary, matching how the fields are laid out.
@@ -57,6 +66,7 @@ const ERROR_FIELD_ORDER = [
   "subCategory",
   "manufactureYear",
   "mileageAtPurchaseKm",
+  "fuelType",
   "engineCc",
   "mileageKm",
   "location",
@@ -123,6 +133,7 @@ export function AssetForm({
   const purchaseDate = watch("purchaseDate");
   const mileageKm = watch("mileageKm");
   const mileageAtPurchaseKm = watch("mileageAtPurchaseKm");
+  const fuelType = watch("fuelType");
   const location = watch("location");
   const valuationMethod = watch("valuationMethod") ?? "auto";
   const currency = watch("currency") ?? "EUR";
@@ -161,9 +172,10 @@ export function AssetForm({
           purchaseDate,
           mileageKm != null ? Number(mileageKm) : null,
           mileageAtPurchaseKm != null ? Number(mileageAtPurchaseKm) : null,
+          (fuelType as string) || null,
         )
       : estimateRealEstateValue(value, purchaseDate, location);
-  }, [autoValuable, valuationMethod, purchaseDate, purchaseValue, mileageKm, mileageAtPurchaseKm, location, isVehicle]);
+  }, [autoValuable, valuationMethod, purchaseDate, purchaseValue, mileageKm, mileageAtPurchaseKm, fuelType, location, isVehicle]);
 
   const invalidFields = useMemo(
     () =>
@@ -309,6 +321,16 @@ export function AssetForm({
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Fuel type</label>
+              <select {...register("fuelType")} className={inputClass}>
+                <option value="">Select fuel…</option>
+                {FUEL_TYPES.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+              {errors.fuelType && <p className={errorClass}>{errors.fuelType.message}</p>}
+            </div>
             <div>
               <label className={labelClass}>Odometer at purchase (km)</label>
               <input
